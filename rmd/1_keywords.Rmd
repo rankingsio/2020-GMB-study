@@ -1,0 +1,55 @@
+---
+title: "1_keywords"
+output: html_document
+---
+
+
+```{r}
+required_packages <- c("tidyverse", "readxl", "ggthemes", "hrbrthemes", "extrafont", "plotly", "scales", "stringr", "gganimate", "here", "tidytext", "sentimentr", "scales", "DT", "here", "sm", "mblm", "prettydoc", "reshape2", "treemapify", "glue", "magick", "imager", "fs", "knitr", "DataExplorer", "inspectdf", "rmdformats", "prettydoc", "janitor", "urltools")
+
+for(i in required_packages) { 
+if(!require(i, character.only = T)) {
+#  if package is not existing, install then load the package
+install.packages(i, dependencies = T)
+require(i, character.only = T)
+}
+}
+```
+
+```{r}
+#load city dataset
+uscities_raw <- read_csv(here("raw_data", "uscities_raw.csv"))
+
+#remove duplicate city name but keep with highest population
+uscities_clean <- uscities_raw %>% 
+  group_by(city) %>% #
+  top_n(1, abs(population)) %>% 
+  ungroup() 
+
+# select certain properties and save new data set; to be used for mapping
+us_city_names <- uscities_clean %>%
+  select(id, city, population, state_id, state_name, county_name, county_fips, lat, lng) %>% 
+  arrange(desc(population)) %>% 
+  mutate(city_id = row_number()) %>% 
+  filter(population >= 2000) #cities larger or equal than 2000
+
+```
+
+```{r}
+#select city_names 
+us_city_names_id <- us_city_names %>% select(city_id, city)
+
+#TO DO
+#add keywords
+us_city_names_id <- us_city_names_id %>% 
+mutate(city_string = str_glue("car accident lawyer {city}")) %>% 
+mutate(city = str_glue("personal injury lawyer {city}")) %>% 
+mutate(city = str_glue("personal injury lawyer {city}")) %>% 
+mutate(city = str_glue("personal injury attorney {city}")) %>%
+mutate(city = str_glue("{city} car accident lawyer"))
+mutate(city = str_glue("{city} personal injury lawyer"))
+mutate(city = str_glue("{city} car accident attorney"))  
+mutate(city = str_glue("{city} personal injury attorney"))
+
+```
+
