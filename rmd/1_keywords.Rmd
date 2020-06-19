@@ -31,7 +31,7 @@ us_city_names <- uscities_clean %>%
   select(id, city, population, state_id, state_name, county_name, county_fips, lat, lng) %>% 
   arrange(desc(population)) %>% 
   mutate(city_id = row_number()) %>% 
-  filter(population >= 2000) #cities larger or equal than 2000
+  filter(population >= 10000) #cities larger or equal than 2000
 
 ```
 
@@ -41,15 +41,31 @@ us_city_names_id <- us_city_names %>% select(city_id, city)
 
 #TO DO
 #add keywords
+
 us_city_names_id <- us_city_names_id %>% 
-mutate(city_string = str_glue("car accident lawyer {city}")) %>% 
-mutate(city = str_glue("personal injury lawyer {city}")) %>% 
-mutate(city = str_glue("personal injury lawyer {city}")) %>% 
-mutate(city = str_glue("personal injury attorney {city}")) %>%
-mutate(city = str_glue("{city} car accident lawyer"))
-mutate(city = str_glue("{city} personal injury lawyer"))
-mutate(city = str_glue("{city} car accident attorney"))  
-mutate(city = str_glue("{city} personal injury attorney"))
+mutate(car_accident_lawyer_end = str_glue("car accident lawyer {city}")) %>% 
+mutate(personal_injury_lawyer_end = str_glue("personal injury lawyer {city}")) %>% 
+mutate(personal_injury_attorney_end = str_glue("personal injury attorney {city}")) %>% 
+mutate(car_accident_attorney_end = str_glue("car accident attorney {city}")) %>%
+mutate(car_accident_lawyer_beg = str_glue("{city} car accident lawyer")) %>% 
+mutate(personal_injury_lawyer_beg = str_glue("{city} personal injury lawyer")) %>% 
+mutate(car_accident_attorney_beg = str_glue("{city} car accident attorney")) %>%   
+mutate(personal_injury_attorney_beg = str_glue("{city} personal injury attorney"))
+
+
+#bind columns
+
+final_keyword_list <- gather(us_city_names_id, key = "keyword_term", value = "keyword_strings", -city_id, -city) %>% 
+  select(-keyword_term)
+#great overview on how to use gather(): https://uc-r.github.io/tidyr                     
+
+```
+
+```{r}
+#save and export in csv to get keywords
+
+write_csv(final_keyword_list, here("proc_data", "1_final_keyword_list.csv"))
+
 
 ```
 
