@@ -27,36 +27,36 @@ uscities_clean <- uscities_raw %>%
   ungroup() 
 
 # select certain properties and save new data set; to be used for mapping
-us_city_names <- uscities_clean %>%
-  select(id, city, population, state_id, state_name, county_name, county_fips, lat, lng) %>% 
+us_city_details <- uscities_clean %>%
+  # select(id, city, population, state_id, state_name, county_name, county_fips, lat, lng) %>% 
   arrange(desc(population)) %>% 
   mutate(city_id = row_number()) %>% 
-  filter(population >= 10000) #cities larger or equal than 2000
+  filter(population >= 100000) #cities larger or equal than 2000
 
 ```
 
 ```{r}
 #select city_names 
-us_city_names_id <- us_city_names %>% select(city_id, city)
+us_city_names_id <- us_city_details %>% select(city_id, city)
 
 #TO DO
 #add keywords
 
 us_city_names_id <- us_city_names_id %>% 
-mutate(car_accident_lawyer_end = str_glue("car accident lawyer {city}")) %>% 
-mutate(personal_injury_lawyer_end = str_glue("personal injury lawyer {city}")) %>% 
-mutate(personal_injury_attorney_end = str_glue("personal injury attorney {city}")) %>% 
-mutate(car_accident_attorney_end = str_glue("car accident attorney {city}")) %>%
-mutate(car_accident_lawyer_beg = str_glue("{city} car accident lawyer")) %>% 
-mutate(personal_injury_lawyer_beg = str_glue("{city} personal injury lawyer")) %>% 
-mutate(car_accident_attorney_beg = str_glue("{city} car accident attorney")) %>%   
-mutate(personal_injury_attorney_beg = str_glue("{city} personal injury attorney"))
+# mutate(car_accident_lawyer_end = str_glue("car accident lawyer {city}")) %>% 
+# mutate(personal_injury_lawyer_end = str_glue("personal injury lawyer {city}")) %>% 
+# mutate(personal_injury_attorney_end = str_glue("personal injury attorney {city}")) %>% 
+# mutate(car_accident_attorney_end = str_glue("car accident attorney {city}")) %>%
+mutate(car_accident_lawyer = str_glue("{city} car accident lawyer")) %>% 
+mutate(personal_injury_lawyer = str_glue("{city} personal injury lawyer")) %>% 
+mutate(car_accident_attorney = str_glue("{city} car accident attorney")) %>%   
+mutate(personal_injury_attorney = str_glue("{city} personal injury attorney"))
 
 
 #bind columns
-
-final_keyword_list <- gather(us_city_names_id, key = "keyword_term", value = "keyword_strings", -city_id, -city) %>% 
+final_keyword_list <- gather(us_city_names_id, key = "keyword_term", value = "keyword_strings", -city_id, -city) %>% mutate(keyword = str_replace_all(final_keyword_list$keyword_term, "[[:punct:]]", " ")) %>% 
   select(-keyword_term)
+
 #great overview on how to use gather(): https://uc-r.github.io/tidyr                     
 
 ```
@@ -66,6 +66,7 @@ final_keyword_list <- gather(us_city_names_id, key = "keyword_term", value = "ke
 
 write_csv(final_keyword_list, here("proc_data", "1_final_keyword_list.csv"))
 
+write_csv(us_city_details, here("proc_data", "us_city_details_with_id.csv"))
 
 ```
 
