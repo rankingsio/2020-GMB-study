@@ -1,6 +1,6 @@
 
 
-#Introduction
+# Introduction
 
 Search Results containing a local pack often get the majority of clicks. Knowing which local rankings factors to optimize for the biggest bang is crucial for SEOs and business owners alike.
 
@@ -12,7 +12,7 @@ Considering the methodological issues and the lack of certain ranking factors, t
 
 Motto: Keep it simple and stupid
 
-#File Structure
+# File Structure
 
 +-- GMB-study.Rproj
 +-- plots                 <- folder for final and polished charts and maps
