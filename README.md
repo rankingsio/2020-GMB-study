@@ -10,6 +10,7 @@ However, in our view, most of the studies are outdated and contain severe statis
 
 Considering the methodological issues and the lack of certain ranking factors, there is a need for rock solid data formatted into clear takeaways.
 
+Motto: Keep it simple and stupid
 
 #File Structure
 
