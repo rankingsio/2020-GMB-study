@@ -54,7 +54,9 @@ mutate(personal_injury_attorney = str_glue("{city} personal injury attorney"))
 
 
 #bind columns
-final_keyword_list <- gather(us_city_names_id, key = "keyword_term", value = "keyword_strings", -city_id, -city) %>% mutate(keyword = str_replace_all(final_keyword_list$keyword_term, "[[:punct:]]", " ")) %>% 
+final_keyword_list <- gather(us_city_names_id, key = "keyword_term", value = "keyword_strings", -city_id, -city)
+
+final_keyword_list <- final_keyword_list %>% mutate(keyword = str_replace_all(final_keyword_list$keyword_term, "[[:punct:]]", " ")) %>% 
   select(-keyword_term)
 
 #great overview on how to use gather(): https://uc-r.github.io/tidyr                     

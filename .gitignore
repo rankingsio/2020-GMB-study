@@ -37,3 +37,9 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+
+raw_data/GMB data/*
+
+# exception to the rule
+!raw_data/GMB data/.gitkeep.txt
