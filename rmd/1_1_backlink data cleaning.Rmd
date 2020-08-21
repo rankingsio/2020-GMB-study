@@ -68,9 +68,18 @@ unique_urls <- urls_for_backlinks %>% distinct(urls_for_backlinks$clean_domain_n
 
 
 ```{r}
-library(googlesheets4)
+#library(googlesheets4)
 
-urls_with_ahrefs_data <- read_sheet("https://docs.google.com/spreadsheets/d/1DWBncf6HfgptVtVHV_Mu9vgJI17-MpFNdzVxXmNnqPs/edit#gid=596870066", sheet = "backlink_data")
+#urls_with_ahrefs_data <- read_sheet("https://docs.google.com/spreadsheets/d/1DWBncf6HfgptVtVHV_Mu9vgJI17-MpFNdzVxXmNnqPs/edit#gid=596870066", sheet = "backlink_data")
+
+# write_csv(urls_with_ahrefs_data, here("proc_data", "1_1_urls_with_ahrefs_data.csv"))
+
+urls_with_ahrefs_data <- read_csv(here("proc_data", "1_1_urls_with_ahrefs_data.csv")) 
+
+final_websites_with_backlinks <- urls_for_backlinks %>% 
+  left_join(urls_with_ahrefs_data, by = c("clean_domain_names" = "Target")) %>%
+  clean_names() %>% 
+  rename(ref_domains_total = domains)
 
 
 # check which domains to remove
@@ -79,16 +88,15 @@ final_websites_with_backlinks %>% count(ref_domains_dofollow) %>% View()
 
 #business.site websites
 
-final_websites_with_backlinks %>% filter(str_detect(clean_domain_names, "business.site")) %>% 
-  slice_sample(n = 5) %>% 
-  select(clean_domain_names, domain_rating, ref_domains_total, ref_domains_dofollow) %>% View()
-# [1] 360
+# final_websites_with_backlinks %>% filter(str_detect(clean_domain_names, "business.site")) %>% 
+#   slice_sample(n = 5) %>% 
+#   select(clean_domain_names, domain_rating, ref_domains_total, ref_domains_dofollow) %>% View()
+# # [1] 360
 
 # websites to filter out
 strings_websites_to_remove <- final_websites_with_backlinks %>% 
   filter(final_websites_with_backlinks$domain_rating > 85) %>%
   select(clean_domain_names, website) %>%
-  filter(str_detect(clean_domain_names, "business.site")) %>% #keep business.site websites
   count(clean_domain_names, sort = T) %>% 
   select(clean_domain_names) %>% 
   unlist()
@@ -96,13 +104,11 @@ strings_websites_to_remove <- final_websites_with_backlinks %>%
 strings_websites_to_remove  
 
 #merge backlink data with urls (not unique urls!)
-final_websites_with_backlinks <- urls_for_backlinks %>% 
-    left_join(urls_with_ahrefs_data, by = c("clean_domain_names" = "Target")) %>%
-  clean_names() %>% 
-  rename(ref_domains_total = domains) %>% 
-  filter(!str_detect(clean_domain_names, paste(strings_websites_to_remove, collapse = "|")))   # remove domains with high DR
+final_websites_with_backlinks_to_export <- final_websites_with_backlinks %>% 
+  filter(!str_detect(clean_domain_names, paste(strings_websites_to_remove, collapse = "|"))) %>% # remove domains with high DR
+  select(-i_number, -mode, -ip, -ref_domains_governmental, -ref_domains_educational, -ref_i_ps, -ref_sub_nets, -backlinks_text, -backlinks_redirect, -backlinks_image, -backlinks_frame, -backlinks_form, - backlinks_governmental, -backlinks_educational, -url_rating)
 
-
+write_csv(final_websites_with_backlinks_to_export, here("raw_data", "GMB data", "backlink_data_websites.csv"))
 
 ```
 
