@@ -25,11 +25,63 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## To-Do-List
+
+Daniel: Some additional background to take note off when adding explantions + interpretations or improving the charts.  
+We are trying to produce an article that is easly understood by lawyers. Our writer, who is not familiar with statistics, will turn the report in an interesting article. For us now, the challenge will be to add the findings into a data report. 
+
+See below for some examples:  
+
+Some examples: 
+
+* https://frontpagedata.com/projects/backlinko/rankings/4_final-report.html 
+* https://frontpagedata.com/projects/backlinko/seo-jobs/final.html
+* https://frontpagedata.com/projects/backlinko/pagespeed/analysis_final.html 
+
+I suggest you do the following to save the plots:
+
+```{r}
+
+if(save == T){ 
+  ggsave(here::here("plots", "7_1_dates_weeks_2020.pdf"), 
+         width = 12.5, height = 8, device = cairo_pdf) 
+}
+```
+
+at the end of the script we convert PDFs to PNGs
+
+# Convert PDFs to PNGs
+
+```{r convert-pdf-to-png, echo = F}
+pdfs <- list.files(here::here("plots"), pattern = "*.pdf")
+
+setwd(here::here("plots", "png"))
+
+for(pdf in pdfs) {
+  pdf_convert(pdf = here::here("plots", "pdf"), 
+              format = "png", dpi = 720)
+}
+```
+
+
+Reference the pngs plot back to the  3_final.rmd (final data report).
+
+![](../../plots/plot_name.png) 
+
+Dont worry of making them pretty. We have someone on our team who can do that. 
+
+
 * Add/improve explanations and interpretation
+  - Daniel: Please add a seperate Methodology part - it should be more or less explainable to a layman. See examples data reports above. 
 * Add/improve plots
+  - Daniel: Please clean names of variables in plots; instead of google_ad -> Google Ads  
 * More attributes/data to the model
 * Save all generated data for plots to csv
+ - No need. We make them pretty here. see comments above 
 * Clean up code
+
+With regards to the model, I trust you completely on the results. I dont know much of this model. Please go ahead with your analysis. 
+
+
 
 ## Data
 #### Independent variables
