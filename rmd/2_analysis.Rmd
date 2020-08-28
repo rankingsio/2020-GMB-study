@@ -25,132 +25,90 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## To-Do-List
-
-Daniel: Some additional background to take note off when adding explantions + interpretations or improving the charts.  
-We are trying to produce an article that is easly understood by lawyers. Our writer, who is not familiar with statistics, will turn the report in an interesting article. For us now, the challenge will be to add the findings into a data report. 
-
-See below for some examples:  
-
-Some examples: 
-
-* https://frontpagedata.com/projects/backlinko/rankings/4_final-report.html 
-* https://frontpagedata.com/projects/backlinko/seo-jobs/final.html
-* https://frontpagedata.com/projects/backlinko/pagespeed/analysis_final.html 
-
-I suggest you do the following to save the plots:
-
-```{r}
-
-if(save == T){ 
-  ggsave(here::here("plots", "7_1_dates_weeks_2020.pdf"), 
-         width = 12.5, height = 8, device = cairo_pdf) 
-}
-```
-
-at the end of the script we convert PDFs to PNGs
-
-# Convert PDFs to PNGs
-
-```{r convert-pdf-to-png, echo = F}
-pdfs <- list.files(here::here("plots"), pattern = "*.pdf")
-
-setwd(here::here("plots", "png"))
-
-for(pdf in pdfs) {
-  pdf_convert(pdf = here::here("plots", "pdf"), 
-              format = "png", dpi = 720)
-}
-```
-
-
-Reference the pngs plot back to the  3_final.rmd (final data report).
-
-![](../../plots/plot_name.png) 
-
-Dont worry of making them pretty. We have someone on our team who can do that. 
-
-
 * Add/improve explanations and interpretation
-  - Daniel: Please add a seperate Methodology part - it should be more or less explainable to a layman. See examples data reports above. 
-* Add/improve plots
-  - Daniel: Please clean names of variables in plots; instead of google_ad -> Google Ads  
 * More attributes/data to the model
-* Save all generated data for plots to csv
- - No need. We make them pretty here. see comments above 
 * Clean up code
 
-With regards to the model, I trust you completely on the results. I dont know much of this model. Please go ahead with your analysis. 
-
-
-
 ## Data
-#### Independent variables
 
-All variables with prefix "relative_" are calculated as rank(values) / length(values), for values in each search group. E.g. for search with keyword_string "Milwaukee car accident lawyer" the entry with highest number_of_photos would get relative_number_of_photos value of 1, the lowest value would be 0, and the rest of the values would be something between. The idea behind this transformation is to make attribute values more comparable between searches, i.e. try to eliminate effect of the size of the population of the city etc.
+Google My Business search results were collected for four unique keyword combinations in 426 US cities, giving in total 1659 results. The format of the search queries was one the following:
+* (city) + " car accident lawyer"  
+* (city) + " personal injury lawyer" 
+* (city) + " car accident attorney"
+* (city) + " personal injury attorney"
+
+#### Independent variables
+All variables with prefix "Relative" are calculated as rank(values) / length(values), for values in each search group. E.g. for search with keyword "Milwaukee car accident lawyer" the entry with highest number of photos would get Relative number of photos value of 1, entry with lowest value would get 0, and the rest of the values would be something in between. The motivation behind this transformation is to make attribute values more comparable between searches, i.e. try to eliminate effect of the size of the population of the city etc.
 
 * Attributes from basic.csv
-	+ relative_rating
-	+ relative_reviews
-	+ relative_number_of_photos
-	+ relative_total_questions
-	+ google_ad
-	+ provides_updates
-	+ business_claimed
-	+ has_street_address
-  + has_website
-  + has_phone
-  + is_city_keyword_equal_to_city_place
-  + n_keywords_in_description
-  + n_keywords_in_title
-  + has_city_in_description
-  + has_city_in_title
-  + has_lawyerOrAttorney_in_title
-  + has_lawyerOrAttorney_in_description
-  + has_car_in_title
-  + has_car_in_description
-  + has_injury_in_title
-  + has_injury_in_description
-  + n_char_in_description
-  + n_char_in_title
-  + type_category_personal_injury_attorney
-  + type_category_lawyer
-  + type_category_law_firm
-  + type_category_empty
-  + type_category_criminal_justice_attorney
-  + type_category_other
+  + Relative rating
+  + Relative reviews count
+  + Relative photos count
+  + Relative questions count
+
+  + Google Ads
+  + Provides updates
+  + Is business claimed
+
+  + Has street address
+  + Has website
+  + Has phone
+
+  + Keywords in description count
+  + Keywords in title count
+  + Has city in description
+  + Has city in title 
+  + Has lawyer or attorney in title
+  + Has lawyer or attorney in description
+  + Has car in description
+  + Has car in title 
+  + Has injury in description
+  + Has injury in title
+  + Character count in description 
+  + Character count in title 
+
+  + Type category personal injury attorney 
+  + Type category lawyer 
+  + Type category law firm
+  + Type category empty
+  + Type category criminal justice attorney
+  + Type category other 
 
 * Attributes from social_profile.csv
-  + has_twitter
-  + has_fb
-  + has_youtube
-  + has_instagram
-  + has_linkedin
+  + Has twitter
+  + Has fb
+  + Has youtube
+  + Has instagram
+  + Has linkedin
    
 * Attributes from all_reviews.csv
-  + review_ratio_of_5s
-  + review_ratio_of_4s
-  + review_ratio_of_3s
-  + review_ratio_of_2s
-  + review_ratio_of_1s
-  + review_response_ratio
-  + relative_review_likes
+  + Ratio of 5s in ratings 
+  + Ratio of 4s in ratings
+  + Ratio of 3s in ratings
+  + Ratio of 2s in ratings
+  + Ratio of 1s in ratings
+  + Review response ratio
+  + Relative review likes count
   
 * Attributes from q_a.csv
-  + answer_ratio
+  + Question answer ratio
   
 * Attributes from backlink_data_websites.csv
-  + relative_domain_rating
-  + relative_ahrefs_rank
-  + relative_ref_domains_total
-  + relative_ref_domains_dofollow
-  + relative_linked_domains
-  + relative_total_backlinks
-  + relative_backlinks_no_follow
-  + relative_total_keywords
-  + relative_total_traffic
+  + Relative domain_rating
+  + Relative ahrefs_rank
+  + Relative ref_domains_total
+  + Relative ref_domains_dofollow
+  + Relative linked_domains
+  + Relative total_backlinks
+  + Relative backlinks_no_follow
+  + Relative total_keywords
+  + Relative total_traffic
 
+#### Dependent variables
+* Position in the search results
 
-```{r data, echo=F}
+```{r data, cache=TRUE, echo = FALSE}
+
 #read csv
 basic <- fread("raw_data/GMB data/basic.csv")
 social_profile <- fread("raw_data/GMB data/social_profile.csv")
@@ -158,6 +116,8 @@ user_review_featured <- fread("raw_data/GMB data/user_review_featured.csv")
 q_a <- fread("raw_data/GMB data/q_a.csv")
 all_reviews <- fread("raw_data/GMB data/all_reviews.csv")
 backlink_data_websites <- fread("raw_data/GMB data/backlink_data_websites.csv")
+cities <- fread("raw_data/uscities_raw.csv")
+most_relevant_reviews <- fread("raw_data/GMB data/most_relevant_reviews.csv")
 
 #keep only the latest scraped rows for social_profile
 social_profile[, scraping_date := as.Date(scraping_date)]
@@ -172,39 +132,39 @@ data_all[, group_size := .N, by=keyword_strings]
 data_all <- data_all[group_size >= 10]
 
 #relative variables, ie. normalize by dividing by median value of the whole search group
-data_all[, relative_rating := rank(rating, na.last="keep") / sum(!is.na(rating)), by=keyword_strings]
-data_all[, relative_reviews := rank(reviews, na.last="keep") / sum(!is.na(reviews)), by=keyword_strings]
-data_all[, relative_number_of_photos := rank(number_of_photos, na.last="keep") / sum(!is.na(number_of_photos)), by=keyword_strings]
-data_all[, relative_total_questions := rank(total_questions, na.last="keep") / sum(!is.na(total_questions)), by=keyword_strings]
+data_all[, 'Relative review rating' := rank(rating, na.last="keep") / sum(!is.na(rating)), by=keyword_strings]
+data_all[, 'Relative reviews count' := rank(reviews, na.last="keep") / sum(!is.na(reviews)), by=keyword_strings]
+data_all[, 'Relative photos count' := rank(number_of_photos, na.last="keep") / sum(!is.na(number_of_photos)), by=keyword_strings]
+data_all[, 'Relative questions count' := rank(total_questions, na.last="keep") / sum(!is.na(total_questions)), by=keyword_strings]
 
 #transform Yes/No to 1/0
-data_all[, google_ad := as.integer(google_ad == "Yes")]
-data_all[, provides_updates := as.integer(provides_updates == "Yes")]
-data_all[, business_claimed := as.integer(business_claimed == "Yes")]
+data_all[, 'Google Ads' := as.integer(google_ad == "Yes")]
+data_all[, 'Provides updates' := as.integer(provides_updates == "Yes")]
+data_all[, 'Is business claimed' := as.integer(business_claimed == "Yes")]
 
 #does attribute have content or is it empty)
-data_all[, has_street_address := as.integer(street_address != "")]
-data_all[, has_website := as.integer(website != "")]
-data_all[, has_phone := as.integer(phone != "")]
-data_all[, has_twitter := as.integer(twitter != "")]
-data_all[, has_fb := as.integer(fb != "")]
-data_all[, has_youtube := as.integer(youtube != "")]
-data_all[, has_instagram := as.integer(instagram != "")]
-data_all[, has_linkedin := as.integer(linkedin != "")]
+data_all[, 'Has street address' := as.integer(street_address != "")]
+data_all[, 'Has website' := as.integer(website != "")]
+data_all[, 'Has phone' := as.integer(phone != "")]
+data_all[, 'Has twitter' := as.integer(twitter != "")]
+data_all[, 'Has fb' := as.integer(fb != "")]
+data_all[, 'Has youtube' := as.integer(youtube != "")]
+data_all[, 'Has instagram' := as.integer(instagram != "")]
+data_all[, 'Has linkedin' := as.integer(linkedin != "")]
 
 #description & title
-data_all[, n_keywords_in_description := sum(str_count(description, unlist(str_split(keyword, " ")))) , by = row.names(data_all)]
-data_all[, n_keywords_in_title := sum(str_count(title, unlist(str_split(keyword, " ")))) , by = row.names(data_all)]
-data_all[, has_city_in_description := as.integer(grepl(city, description, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, has_city_in_title := as.integer(grepl(city, title, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, has_lawyerOrAttorney_in_title := as.integer(grepl("lawyer|attorney", title, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, has_lawyerOrAttorney_in_description := as.integer(grepl("lawyer|attorney", description, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, has_car_in_description := as.integer(grepl("car", description, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, has_car_in_title := as.integer(grepl("car", title, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, has_injury_in_description := as.integer(grepl("injury", description, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, has_injury_in_title := as.integer(grepl("injury", title, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, n_char_in_description := nchar(description)]
-data_all[, n_char_in_title := nchar(title)]
+data_all[, 'Keywords in description count' := sum(str_count(description, unlist(str_split(keyword, " ")))) , by = row.names(data_all)]
+data_all[, 'Keywords in title count' := sum(str_count(title, unlist(str_split(keyword, " ")))) , by = row.names(data_all)]
+data_all[, 'Has city in description' := as.integer(grepl(city, description, ignore.case = TRUE)), by = row.names(data_all)]
+data_all[, 'Has city in title' := as.integer(grepl(city, title, ignore.case = TRUE)), by = row.names(data_all)]
+data_all[, 'Has lawyer or attorney in title' := as.integer(grepl("lawyer|attorney", title, ignore.case = TRUE)), by = row.names(data_all)]
+data_all[, 'Has lawyer or attorney in description' := as.integer(grepl("lawyer|attorney", description, ignore.case = TRUE)), by = row.names(data_all)]
+data_all[, 'Has car in description' := as.integer(grepl("car", description, ignore.case = TRUE)), by = row.names(data_all)]
+data_all[, 'Has car in title' := as.integer(grepl("car", title, ignore.case = TRUE)), by = row.names(data_all)]
+data_all[, 'Has injury in description' := as.integer(grepl("injury", description, ignore.case = TRUE)), by = row.names(data_all)]
+data_all[, 'Has injury in title' := as.integer(grepl("injury", title, ignore.case = TRUE)), by = row.names(data_all)]
+data_all[, 'Character count in description' := nchar(description)]
+data_all[, 'Character count in title' := nchar(title)]
 
 #type_category features
 common_types <- c("Personal injury attorney",
@@ -213,59 +173,108 @@ common_types <- c("Personal injury attorney",
                   "",
                   "Criminal justice attorney" 
 )
-data_all[, type_category_personal_injury_attorney := as.numeric(type_category == common_types[1])]
-data_all[, type_category_lawyer := as.numeric(type_category == common_types[2])]
-data_all[, type_category_law_firm := as.numeric(type_category == common_types[3])]
-data_all[, type_category_empty := as.numeric(type_category == common_types[4])]
-data_all[, type_category_criminal_justice_attorney := as.numeric(type_category == common_types[5])]
-data_all[, type_category_other := as.numeric(!(type_category %in% common_types))]
+data_all[, 'Type category personal injury attorney' := as.numeric(type_category == common_types[1])]
+data_all[, 'Type category lawyer' := as.numeric(type_category == common_types[2])]
+data_all[, 'Type category law firm' := as.numeric(type_category == common_types[3])]
+data_all[, 'Type category empty' := as.numeric(type_category == common_types[4])]
+data_all[, 'Type category criminal justice attorney' := as.numeric(type_category == common_types[5])]
+data_all[, 'Type category other' := as.numeric(!(type_category %in% common_types))]
 
-data_all[, is_city_keyword_equal_to_city_place := as.integer(city == city_place)]
+data_all[, 'Has same city listed as in search query' := as.integer(city == city_place)]
 
 #features from user_review_featured
-data_all[, has_featured_review := as.integer(place_id %in% unique(user_review_featured$place_id))]
+data_all[, 'Has featured reviews' := as.integer(place_id %in% unique(user_review_featured$place_id))]
 
 #features from all_reviews
+all_reviews[, time_since_review := 0]
+all_reviews[grepl("minute", all_reviews_date), time_since_review := 1]
+all_reviews[grepl("hour", all_reviews_date), time_since_review := 2]
+all_reviews[grepl("day", all_reviews_date), time_since_review := 3]
+all_reviews[grepl("week", all_reviews_date), time_since_review := 4]
+all_reviews[grepl("month", all_reviews_date), time_since_review := 5]
+all_reviews[grepl("year", all_reviews_date), time_since_review := 6]
+
 data_all <- merge(data_all, by="place_id", all.x=T, all.y=F,
       all_reviews[, list(
-        review_ratio_of_5s = sum(all_reviews_rating == 5) / .N,
-        review_ratio_of_4s = sum(all_reviews_rating == 4) / .N,
-        review_ratio_of_3s = sum(all_reviews_rating == 3) / .N,
-        review_ratio_of_2s = sum(all_reviews_rating == 2) / .N,
-        review_ratio_of_1s = sum(all_reviews_rating == 1) / .N,
-        review_response_ratio = sum(all_reviews_response_from_owner != "") / .N,
-        review_median_of_likes = as.numeric(median(all_reviews_number_of_likes, na.rm=TRUE))
+        'Ratio of 5s in ratings' = sum(all_reviews_rating == 5) / .N,
+        'Ratio of 4s in ratings' = sum(all_reviews_rating == 4) / .N,
+        'Ratio of 3s in ratings' = sum(all_reviews_rating == 3) / .N,
+        'Ratio of 2s in ratings' = sum(all_reviews_rating == 2) / .N,
+        'Ratio of 1s in ratings' = sum(all_reviews_rating == 1) / .N,
+        'Review response ratio' = sum(all_reviews_response_from_owner != "") / .N,
+        'review_median_of_likes' = as.numeric(median(all_reviews_number_of_likes, na.rm=TRUE)),
+        'Time since previous review' = min(time_since_review)
       ), by = "place_id"]
 )
-data_all[, relative_review_likes := rank(review_median_of_likes, na.last="keep") / sum(!is.na(review_median_of_likes)), by="keyword_strings"]
+data_all[, 'Relative review likes count' := rank(review_median_of_likes, na.last="keep") / sum(!is.na(review_median_of_likes)), by="keyword_strings"]
 
 #features from q_a
 data_all <- merge(data_all, by="place_id", all.x=T, all.y=F,
                   q_a[, list(
-                    answer_ratio = sum(question_answer == "") / .N
+                    'Question answer ratio' = sum(question_answer == "") / .N
+                  ), by = "place_id"]
+)
+
+#features from cities
+data_all[, city_population := 0.0]
+data_all[, city_density := 0.0]
+#find closest matching location in cities data given by Euclidean distance between lat&long
+for(i in 1:nrow(data_all)) {
+  pop <- NA_real_
+  den <- NA_real_
+  if(!is.na(data_all$latitude[i])) {
+    city_index <- which.min((data_all$latitude[i] - cities$lat)^2 + (data_all$longtitude[i] - cities$lng)^2)
+    pop <- cities$population[city_index]
+    den <- cities$density[city_index]
+  }
+  data_all[i, city_population := pop]
+  data_all[i, city_density := den]
+ }
+data_all[, 'Relative place population' := rank(city_population, na.last="keep") / sum(!is.na(city_population)), by="keyword_strings"]
+data_all[, 'Relative place population density' := rank(city_density, na.last="keep") / sum(!is.na(city_density)), by="keyword_strings"]
+
+
+#features from most_relevant_reviews
+data_all <- merge(data_all, by="place_id", all.x=T, all.y=F,
+                  most_relevant_reviews[, list(
+                    'Mean of most relevant ratings' = mean(most_relevant_reviews_rating == 5)
                   ), by = "place_id"]
 )
 
 #features from backlink_data_websites
 data_all <- merge(data_all, backlink_data_websites, by="place_id", all.x=T, all.y=F)
-data_all[, relative_domain_rating := rank(domain_rating, na.last="keep") / sum(!is.na(domain_rating)), by=keyword_strings]
-data_all[, relative_ahrefs_rank := rank(ahrefs_rank, na.last="keep") / sum(!is.na(ahrefs_rank)), by=keyword_strings]
-data_all[, relative_ref_domains_total := rank(ref_domains_total, na.last="keep") / sum(!is.na(ref_domains_total)), by=keyword_strings]
-data_all[, relative_ref_domains_dofollow := rank(ref_domains_dofollow, na.last="keep") / sum(!is.na(ref_domains_dofollow)), by=keyword_strings]
-data_all[, relative_linked_domains := rank(linked_domains, na.last="keep") / sum(!is.na(linked_domains)), by=keyword_strings]
-data_all[, relative_total_backlinks := rank(total_backlinks, na.last="keep") / sum(!is.na(total_backlinks)), by=keyword_strings]
-data_all[, relative_backlinks_no_follow := rank(backlinks_no_follow, na.last="keep") / sum(!is.na(backlinks_no_follow)), by=keyword_strings]
-data_all[, relative_total_keywords := rank(total_keywords, na.last="keep") / sum(!is.na(total_keywords)), by=keyword_strings]
-data_all[, relative_total_traffic := rank(total_traffic, na.last="keep") / sum(!is.na(total_traffic)), by=keyword_strings]
+data_all[, 'Relative domain_rating' := rank(domain_rating, na.last="keep") / sum(!is.na(domain_rating)), by=keyword_strings]
+data_all[, 'Relative ahrefs_rank' := rank(ahrefs_rank, na.last="keep") / sum(!is.na(ahrefs_rank)), by=keyword_strings]
+data_all[, 'Relative ref_domains_total' := rank(ref_domains_total, na.last="keep") / sum(!is.na(ref_domains_total)), by=keyword_strings]
+data_all[, 'Relative ref_domains_dofollow' := rank(ref_domains_dofollow, na.last="keep") / sum(!is.na(ref_domains_dofollow)), by=keyword_strings]
+data_all[, 'Relative linked_domains' := rank(linked_domains, na.last="keep") / sum(!is.na(linked_domains)), by=keyword_strings]
+data_all[, 'Relative total_backlinks' := rank(total_backlinks, na.last="keep") / sum(!is.na(total_backlinks)), by=keyword_strings]
+data_all[, 'Relative backlinks_no_follow' := rank(backlinks_no_follow, na.last="keep") / sum(!is.na(backlinks_no_follow)), by=keyword_strings]
+data_all[, 'Relative total_keywords' := rank(total_keywords, na.last="keep") / sum(!is.na(total_keywords)), by=keyword_strings]
+data_all[, 'Relative total_traffic' := rank(total_traffic, na.last="keep") / sum(!is.na(total_traffic)), by=keyword_strings]
+
+
+#for xgboost rank modeling, rows have to be ordered by group
+setorder(data_all, keyword_strings, position)
 
 ```
 
 
 ## Modelling
-```{r model}
-#for xgboost rank modeling, rows have to be ordered by group
-setorder(data_all, keyword_strings, position)
 
+The goal of the study is to find answers to three key questions:
+1. How accurately can the rankings be predicted given the dependent variables?
+2. What are the most important features for the predictions?
+3. What is the direction of the impact?
+
+The method of choice for the study was gradient boosted decision trees (GBDT). GBDT is a widely used machine learning technique which can be used in many applications from regression or classification to learning to rank type of problems. In a learning to rank problem, there is a ordered list of items and the goal for the model is to calculate a score for each item based on dependent variables such that the original order is retained.
+
+In building the model, dataset was split to two folds: train data (containing ~70% of searches) and test data (the rest of the data, about 30%). GBDT model was fitted using training data, predictions were calculated for the test data set, and then finally, predictions were compared to real observed rankings. The chosen evaluation metric was Spearman's rank correlation coefficient. Spearman's rank correlation is a scaled measurement of the agreement of two rankings. Perfectly matching rankings would give value of 1, the expected value for random rankings is zero and reverse order would have value of -1.
+
+The next step is to understand why the model makes particular predictions; what are the most important dependent variables and how their values effect the predictions? For this purpose SHapley Additive exPlanations (SHAP) values were calculated. SHAP each prediction is presented a sum of each dependent variable's responsibility. The overall impact can be measured as average of absolute values over the whole dataset.
+
+
+```{r model, cache=TRUE, echo = FALSE}
 #split data to train and test sets based on search term
 set.seed(1)
 train_ratio <- 0.7
@@ -273,39 +282,75 @@ ids <- unique(data_all$keyword_strings)
 train_ids <- sample(ids, floor(train_ratio*length(ids)))
 test_ids <- setdiff(ids, train_ids)
 
-feature_cols <- c("relative_rating", "relative_reviews", "relative_number_of_photos", "relative_total_questions",
-                  "google_ad", "provides_updates", "business_claimed",
-                  "has_street_address", "has_website", "has_phone", 
-                  "has_twitter", "has_fb" , "has_youtube", "has_instagram", "has_linkedin",
-                  "n_keywords_in_description", "n_keywords_in_title",
-                  "has_city_in_description", "has_city_in_title",
-                  "n_char_in_description", "n_char_in_title",
-                  "has_featured_review", 
-                  "review_ratio_of_5s", "review_ratio_of_4s", "review_ratio_of_3s", "review_ratio_of_2s", "review_ratio_of_1s",
-                  "review_response_ratio", "relative_review_likes",
-                  "answer_ratio",
-                  "has_lawyerOrAttorney_in_title",
-                  "has_lawyerOrAttorney_in_description",
-                  "has_car_in_title",
-                  "has_car_in_description",
-                  "has_injury_in_title",
-                  "has_injury_in_description",
-                  "relative_domain_rating",
-                  "relative_ahrefs_rank",
-                  "relative_ref_domains_total",
-                  "relative_ref_domains_dofollow",
-                  "relative_linked_domains",
-                  "relative_total_backlinks",
-                  "relative_backlinks_no_follow",
-                  "relative_total_keywords",
-                  "relative_total_traffic",
-                  "type_category_personal_injury_attorney",
-                  "type_category_lawyer",
-                  "type_category_law_firm",
-                  "type_category_empty",
-                  "type_category_criminal_justice_attorney",
-                  "type_category_other",
-                  "is_city_keyword_equal_to_city_place")
+feature_cols <- c(
+'Relative review rating',
+'Relative reviews count',
+'Relative photos count',
+'Relative questions count',
+
+'Google Ads',
+'Provides updates',
+'Is business claimed',
+
+'Has street address',
+'Has website',
+'Has phone',
+'Has twitter',
+'Has fb',
+'Has youtube',
+'Has instagram',
+'Has linkedin',
+
+'Keywords in description count',
+'Keywords in title count',
+'Has city in description',
+'Has city in title' ,
+'Has lawyer or attorney in title',
+'Has lawyer or attorney in description',
+'Has car in description',
+'Has car in title' ,
+'Has injury in description',
+'Has injury in title',
+'Character count in description', 
+'Character count in title', 
+
+'Type category personal injury attorney', 
+'Type category lawyer', 
+'Type category law firm',
+'Type category empty',
+'Type category criminal justice attorney',
+'Type category other', 
+
+'Has same city listed as in search query',
+
+'Has featured reviews', 
+
+'Ratio of 5s in ratings', 
+'Ratio of 4s in ratings',
+'Ratio of 3s in ratings',
+'Ratio of 2s in ratings',
+'Ratio of 1s in ratings',
+'Review response ratio',
+'Time since previous review',
+
+'Relative review likes count',
+
+'Question answer ratio',
+
+'Relative domain_rating',
+'Relative ahrefs_rank',
+'Relative ref_domains_total',
+'Relative ref_domains_dofollow',
+'Relative linked_domains',
+'Relative total_backlinks',
+'Relative backlinks_no_follow',
+'Relative total_keywords',
+'Relative total_traffic',
+
+'Relative place population',
+'Relative place population density',
+
+'Mean of most relevant ratings')
 
 data_train <- data_all[keyword_strings %in% train_ids, ]
 X_train <- as.matrix(data_train[, feature_cols, with=F])
@@ -323,18 +368,19 @@ dtrain = xgb.DMatrix(data = X_train, label = y_train, group = group_train)
 dtest = xgb.DMatrix(data = X_test, label = y_test, group = group_test)
 
 params <- list(eta = 0.1, 
-               subsample = 0.8, 
-               colsample_bytree = 0.8, 
+               subsample = 0.7, 
+               colsample_bytree = 0.7, 
                min_child_weight = 1,
                max_leaves = 64,
                max_depth = 0,
                lambda = 0,
-               alpha = 1.0,
+               alpha = 0.5,
                grow_policy = "lossguide",
                tree_method = "hist",
                objective = "rank:pairwise"
           )
 nrounds <- 1000
+
 #model training
 model <- xgb.train(data = dtrain, 
                  params = params, 
@@ -344,6 +390,15 @@ model <- xgb.train(data = dtrain,
 
 #predict
 pred <- predict(model, X_test)
+
+#shap
+shap_values <- shap.values(xgb_model = model, X_train = X_train)
+shap_importance <- data.frame(feature = names(shap_values$mean_shap_score), 
+                              importance = shap_values$mean_shap_score,
+                              stringsAsFactors = F)
+
+shap_values_test <- shap.values(model, X_test)
+shap_scores_test <- shap_values_test$shap_score
 ```
 
 ## Results
@@ -357,7 +412,7 @@ pred <- predict(model, X_test)
   + In the plot below, showing the distribution of correlations calculated separately for each search  
   
 
-```{r accuracy}
+```{r accuracy, cache=TRUE, echo = FALSE}
 dc <- data_all[keyword_strings %in% test_ids,]
 dc[, pred := pred]
 dc <- dc[, list(correlation=cor(target, pred, method="spearman")), by="keyword_strings"]
@@ -379,11 +434,8 @@ plot(prediction_plot)
   + https://towardsdatascience.com/shap-explained-the-way-i-wish-someone-explained-it-to-me-ab81cc69ef30
   + https://arxiv.org/abs/1705.07874
 
-```{r importance}
-shap_values <- shap.values(xgb_model = model, X_train = X_train)
-shap_importance <- data.frame(feature = names(shap_values$mean_shap_score), 
-                              importance = shap_values$mean_shap_score,
-                              stringsAsFactors = F)
+```{r importance, cache=TRUE, echo = FALSE}
+
 importance_plot <- ggplot(shap_importance, aes(x=reorder(feature, importance), y=importance, fill=importance)) +
   geom_bar(stat='identity') + 
   scale_fill_gradient2(low = "red", mid ="yellow", high = "green", midpoint = 0) + 
@@ -400,8 +452,6 @@ shap.plot.summary.wrap2(shap_values$shap_score, X_train, dilute=10)
 ### Case studies
 ```{r case, echo=FALSE}
 dc <- dc[order(dc$correlation),]
-shap_values_test <- shap.values(model, X_test)
-shap_scores_test <- shap_values_test$shap_score
 
 create_result_dataframe <- function(key) {
   rows <- which(data_test$keyword_strings == key)
