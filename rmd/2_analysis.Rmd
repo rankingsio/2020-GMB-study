@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r results=FALSE, message=FALSE, echo=FALSE}
   #load required packages, if package is not found try to install
-  required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "ggplot2")
+  required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "ggplot2", "gridExtra")
 
   not_installed_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
   if(length(not_installed_packages) > 0) 
@@ -25,13 +25,15 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## To-Do-List
+
 * Add/improve explanations and interpretation
-* More attributes/data to the model
+* Renaming some of the variables
 * Clean up code
 
 ## Data
 
 Google My Business search results were collected for four unique keyword combinations in 426 US cities, giving in total 1659 results. The format of the search queries was one the following:
+
 * (city) + " car accident lawyer"  
 * (city) + " personal injury lawyer" 
 * (city) + " car accident attorney"
@@ -125,7 +127,7 @@ social_profile <- social_profile[, .SD[which.max(scraping_date)], by="place_id"]
 
 #process data for modeling, create/transform attributes etc
 data_all <- merge(basic, social_profile[, c("place_id","twitter","fb","youtube","instagram","linkedin"),with=F], by="place_id", all.x=T)
-data_all[, target := (rank(-position, ties.method="average") - 1) / (.N-1), by=keyword_strings]
+data_all[, target := (rank(-position, ties.method="first") - 1) / (.N-1), by=keyword_strings]
 
 #calculate search group sizes and remove searches with high enough result
 data_all[, group_size := .N, by=keyword_strings]
@@ -522,3 +524,61 @@ knitr::kable(df_median, caption = "Most important features and their impact on p
 plot(y_worst, scores_worst, xlab="Observed rank", ylab="Predicted score", main=worst_case, sub = paste0("Spearman's correlation: ", worst_correlation))
 knitr::kable(df_worst, caption = "Most important features and their impact on predictions for each seach result, ordered by position.")
 ```
+
+## Type category
+```{r type_category_plots, results='asis', echo=FALSE}
+
+#gather basic info
+type_data <- data_all[google_ad =="No" & type_category != "", c("keyword", "type_category", "target"), with=F]
+type_data[type_category=="", type_category := "NA"]
+type_counts <- as.data.frame(sort(table(type_data$type_category), decreasing=T), stringsAsFactors = F)
+names(type_counts)[1] <- "category"
+type_unique_data <- data_all[, list(N = length(unique(type_category))), by="keyword_strings"]
+
+#table
+type_basic <- data.table("Description" = character(), "Value" = character())
+type_basic <- rbind(type_basic, list('Total unique categories', length(unique(data_all$type_category)) - 1))
+type_basic <- rbind(type_basic, list('Missing type category', paste0(round(100*sum(data_all$type_category=="")/nrow(data_all), 2), "%")))
+type_basic <- rbind(type_basic, list('Categories with more than >=10 results', sum(type_counts$Freq>=10)))
+type_basic <- rbind(type_basic, list('Categories with more than >=100 results', sum(type_counts$Freq>=100)))
+type_basic <- rbind(type_basic, list('Categories with more than >=1000 results', sum(type_counts$Freq>=1000)))
+type_basic <- rbind(type_basic, list('Median unique categories in one search', median(type_unique_data$N)))
+type_basic <- rbind(type_basic, list('Min unique categories in one search', min(type_unique_data$N)))
+type_basic <- rbind(type_basic, list('Max unique categories in one search', max(type_unique_data$N)))
+
+knitr::kable(type_basic, caption = "Basic information about type categories")
+
+
+#plots
+freq_plot <- ggplot(data=type_counts[1:10,], aes(x=reorder(category, Freq), y=Freq)) +
+  geom_bar(stat="identity", fill="steelblue") +
+  ylab("Count") +
+  xlab("Category") + 
+  labs(title = "Ten most common type categories in search results") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_flip()
+print(freq_plot)
+
+ps <- list()
+for(i in 1:6) {
+  ps[[i]] <- ggplot(type_data[type_category == type_counts$category[i]], aes(x=-target)) +
+  geom_histogram(color="white", fill="steelblue", binwidth=0.05) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = type_counts$category[i]) + 
+  theme(plot.title = element_text(hjust = 0.5), axis.text.x=element_blank(), axis.ticks.x=element_blank())
+}
+grid.arrange(ps[[1]], ps[[2]], ps[[3]], ps[[4]], ps[[5]], ps[[6]], nrow=2, ncol=3, top = "Distribution of search positions for 6 most common type categories")
+```    
+
+Key takeaways:
+
+* Distributions for more general categories (Lawyer, Law firm, Legal services) are tilted towards lower positions in the results compared to best matching category (Personal injury attorney).
+* Same thing occurs with specific, but less matching categories (Criminal justice attorney, Family law attorney)
+* However, some of these categories (Law firm, Criminal justice attorney, Legal services) have relatively large counts for top positions. One possible explanation is that these groups represent larger companies with high revenues and therefore would be ranked higher. 
+
+
+
+## Reviews
+
+## Title
