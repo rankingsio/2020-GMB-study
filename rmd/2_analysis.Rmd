@@ -9,8 +9,14 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r results=FALSE, message=FALSE, echo=FALSE}
+  save <- F
+  #create plots folder, if it doesn't exist
+  if(save && !dir.exists(here::here("plots"))) {
+      dir.create(here::here("plots"))
+  }
+
   #load required packages, if package is not found try to install
-  required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "ggplot2", "gridExtra")
+  required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "ggplot2", "gridExtra", "wordcloud", "tm")
 
   not_installed_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
   if(length(not_installed_packages) > 0) 
@@ -20,19 +26,14 @@ knitr::opts_chunk$set(echo = TRUE)
   if(any(!was_succesfully_loaded)) {
     cat(required_packages[!was_succesfully_loaded],"\n")
   }
-    
-
 ```
 
 ## To-Do-List
 
-* Add/improve explanations and interpretation
-* Renaming some of the variables
-* Clean up code
 
 ## Data
 
-Google My Business search results were collected for four unique keyword combinations in 426 US cities, giving in total 1659 results. The format of the search queries was one the following:
+Google My Business search results were collected for 4 unique keyword combinations in 426 US cities, giving in total 1659 search results. The format of the search queries was one the following:
 
 * (city) + " car accident lawyer"  
 * (city) + " personal injury lawyer" 
@@ -40,24 +41,20 @@ Google My Business search results were collected for four unique keyword combina
 * (city) + " personal injury attorney"
 
 #### Independent variables
-All variables with prefix "Relative" are calculated as rank(values) / length(values), for values in each search group. E.g. for search with keyword "Milwaukee car accident lawyer" the entry with highest number of photos would get Relative number of photos value of 1, entry with lowest value would get 0, and the rest of the values would be something in between. The motivation behind this transformation is to make attribute values more comparable between searches, i.e. try to eliminate effect of the size of the population of the city etc.
+All variables with prefix "Relative" are calculated as rank(values) / length(values) for values inside each search group. So for example, search with keyword "Milwaukee car accident lawyer" the entry with highest number of photos would get Relative number of photos value equal to 1, entry with lowest value would get 0, and the rest of the values would be something in between. The motivation behind this transformation is to make attribute values more comparable between searches, i.e. trying to minimize effect of the size of the population of the city etc.
 
 * Attributes from basic.csv
-  + Relative rating
-  + Relative reviews count
-  + Relative photos count
-  + Relative questions count
-
-  + Google Ads
+  + Review rating
+  + Relative #reviews
+  + Relative #photos
+  + Relative #questions
   + Provides updates
   + Is business claimed
-
   + Has street address
   + Has website
   + Has phone
-
-  + Keywords in description count
-  + Keywords in title count
+  + #Keywords in description
+  + #Keywords in title
   + Has city in description
   + Has city in title 
   + Has lawyer or attorney in title
@@ -66,15 +63,14 @@ All variables with prefix "Relative" are calculated as rank(values) / length(val
   + Has car in title 
   + Has injury in description
   + Has injury in title
-  + Character count in description 
-  + Character count in title 
-
-  + Type category personal injury attorney 
-  + Type category lawyer 
-  + Type category law firm
-  + Type category empty
-  + Type category criminal justice attorney
-  + Type category other 
+  + #Characters in description 
+  + #Characters in title 
+  + Type category is personal injury attorney 
+  + Type category is lawyer 
+  + Type category is law firm
+  + Type category is empty
+  + Type category is criminal justice attorney
+  + Type category is other 
 
 * Attributes from social_profile.csv
   + Has twitter
@@ -90,7 +86,7 @@ All variables with prefix "Relative" are calculated as rank(values) / length(val
   + Ratio of 2s in ratings
   + Ratio of 1s in ratings
   + Review response ratio
-  + Relative review likes count
+  + Relative #review likes
   
 * Attributes from q_a.csv
   + Question answer ratio
@@ -111,6 +107,7 @@ All variables with prefix "Relative" are calculated as rank(values) / length(val
 
 ```{r data, cache=TRUE, echo = FALSE}
 
+
 #read csv
 basic <- fread("raw_data/GMB data/basic.csv")
 social_profile <- fread("raw_data/GMB data/social_profile.csv")
@@ -125,22 +122,37 @@ most_relevant_reviews <- fread("raw_data/GMB data/most_relevant_reviews.csv")
 social_profile[, scraping_date := as.Date(scraping_date)]
 social_profile <- social_profile[, .SD[which.max(scraping_date)], by="place_id"]
 
-#process data for modeling, create/transform attributes etc
-data_all <- merge(basic, social_profile[, c("place_id","twitter","fb","youtube","instagram","linkedin"),with=F], by="place_id", all.x=T)
-data_all[, target := (rank(-position, ties.method="first") - 1) / (.N-1), by=keyword_strings]
+#function to return relative values,
+#ie. return new values between 0 and 1; zero for lowest and one for highest original value and the rest something between
+relative_value <- function(values, na_as_zero = FALSE) {
+  res <- (rank(values, na.last="keep", ties.method="average") - 1) / (sum(!is.na(values))-1)
+  if(na_as_zero) {
+    res[is.na(values)] <- 0
+  }
+  return(res)
+}
 
-#calculate search group sizes and remove searches with high enough result
+
+#start processing data for modeling, create/transform attributes etc
+data_all <- merge(basic, social_profile[, c("place_id","twitter","fb","youtube","instagram","linkedin"),with=F], by="place_id", all.x=T)
+data_all[, target := relative_value(-position), by=keyword_strings]
+data_all[, relative_position := relative_value(position), by=keyword_strings]
+
+#remove result with google_ad =="Yes". These row are always in position 1 and 2 of the results
+data_all <- data_all[google_ad == "No"]
+
+#calculate search group sizes and remove a few searches without enough result
 data_all[, group_size := .N, by=keyword_strings]
 data_all <- data_all[group_size >= 10]
 
 #relative variables, ie. normalize by dividing by median value of the whole search group
-data_all[, 'Relative review rating' := rank(rating, na.last="keep") / sum(!is.na(rating)), by=keyword_strings]
-data_all[, 'Relative reviews count' := rank(reviews, na.last="keep") / sum(!is.na(reviews)), by=keyword_strings]
-data_all[, 'Relative photos count' := rank(number_of_photos, na.last="keep") / sum(!is.na(number_of_photos)), by=keyword_strings]
-data_all[, 'Relative questions count' := rank(total_questions, na.last="keep") / sum(!is.na(total_questions)), by=keyword_strings]
+data_all[, 'Review rating' := ifelse(is.na(rating) | rating < 1 | rating > 5, NA_real_, rating), by=keyword_strings]
+data_all[, 'Relative #reviews' := relative_value(reviews, T), by=keyword_strings]
+data_all[, 'Relative #photos' := relative_value(number_of_photos, T), by=keyword_strings]
+data_all[, 'Relative #questions' := relative_value(total_questions, T), by=keyword_strings]
 
 #transform Yes/No to 1/0
-data_all[, 'Google Ads' := as.integer(google_ad == "Yes")]
+#data_all[, 'Has GoogleAd' := as.integer(google_ad == "Yes")]
 data_all[, 'Provides updates' := as.integer(provides_updates == "Yes")]
 data_all[, 'Is business claimed' := as.integer(business_claimed == "Yes")]
 
@@ -155,18 +167,16 @@ data_all[, 'Has instagram' := as.integer(instagram != "")]
 data_all[, 'Has linkedin' := as.integer(linkedin != "")]
 
 #description & title
-data_all[, 'Keywords in description count' := sum(str_count(description, unlist(str_split(keyword, " ")))) , by = row.names(data_all)]
-data_all[, 'Keywords in title count' := sum(str_count(title, unlist(str_split(keyword, " ")))) , by = row.names(data_all)]
+data_all[, '#Keywords in description' := sum(str_count(description, unlist(str_split(keyword_strings, " ")))) , by = row.names(data_all)]
+data_all[, '#Keywords in title' := sum(str_count(title, unlist(str_split(keyword_strings, " ")))) , by = row.names(data_all)]
 data_all[, 'Has city in description' := as.integer(grepl(city, description, ignore.case = TRUE)), by = row.names(data_all)]
 data_all[, 'Has city in title' := as.integer(grepl(city, title, ignore.case = TRUE)), by = row.names(data_all)]
 data_all[, 'Has lawyer or attorney in title' := as.integer(grepl("lawyer|attorney", title, ignore.case = TRUE)), by = row.names(data_all)]
 data_all[, 'Has lawyer or attorney in description' := as.integer(grepl("lawyer|attorney", description, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, 'Has car in description' := as.integer(grepl("car", description, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, 'Has car in title' := as.integer(grepl("car", title, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, 'Has injury in description' := as.integer(grepl("injury", description, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, 'Has injury in title' := as.integer(grepl("injury", title, ignore.case = TRUE)), by = row.names(data_all)]
-data_all[, 'Character count in description' := nchar(description)]
-data_all[, 'Character count in title' := nchar(title)]
+data_all[, 'Has car accident or personal injury in description' := as.integer(grepl("car accident|personal injury", description, ignore.case = TRUE)), by = row.names(data_all)]
+data_all[, 'Has car accident or personal injury in title' := as.integer(grepl("car accident|personal injury", title, ignore.case = TRUE)), by = row.names(data_all)]
+data_all[, '#Characters in description' := nchar(description)]
+data_all[, '#Characters in title' := nchar(title)]
 
 #type_category features
 common_types <- c("Personal injury attorney",
@@ -175,12 +185,12 @@ common_types <- c("Personal injury attorney",
                   "",
                   "Criminal justice attorney" 
 )
-data_all[, 'Type category personal injury attorney' := as.numeric(type_category == common_types[1])]
-data_all[, 'Type category lawyer' := as.numeric(type_category == common_types[2])]
-data_all[, 'Type category law firm' := as.numeric(type_category == common_types[3])]
-data_all[, 'Type category empty' := as.numeric(type_category == common_types[4])]
-data_all[, 'Type category criminal justice attorney' := as.numeric(type_category == common_types[5])]
-data_all[, 'Type category other' := as.numeric(!(type_category %in% common_types))]
+data_all[, 'Type category is personal injury attorney' := as.numeric(type_category == common_types[1])]
+data_all[, 'Type category is lawyer' := as.numeric(type_category == common_types[2])]
+data_all[, 'Type category is law firm' := as.numeric(type_category == common_types[3])]
+data_all[, 'Type category is empty' := as.numeric(type_category == common_types[4])]
+data_all[, 'Type category is criminal justice attorney' := as.numeric(type_category == common_types[5])]
+data_all[, 'Type category is other' := as.numeric(!(type_category %in% common_types))]
 
 data_all[, 'Has same city listed as in search query' := as.integer(city == city_place)]
 
@@ -208,7 +218,7 @@ data_all <- merge(data_all, by="place_id", all.x=T, all.y=F,
         'Time since previous review' = min(time_since_review)
       ), by = "place_id"]
 )
-data_all[, 'Relative review likes count' := rank(review_median_of_likes, na.last="keep") / sum(!is.na(review_median_of_likes)), by="keyword_strings"]
+data_all[, 'Relative #review likes' := relative_value(review_median_of_likes, T), by="keyword_strings"]
 
 #features from q_a
 data_all <- merge(data_all, by="place_id", all.x=T, all.y=F,
@@ -232,8 +242,8 @@ for(i in 1:nrow(data_all)) {
   data_all[i, city_population := pop]
   data_all[i, city_density := den]
  }
-data_all[, 'Relative place population' := rank(city_population, na.last="keep") / sum(!is.na(city_population)), by="keyword_strings"]
-data_all[, 'Relative place population density' := rank(city_density, na.last="keep") / sum(!is.na(city_density)), by="keyword_strings"]
+data_all[, 'Relative place population' := relative_value(city_population), by="keyword_strings"]
+data_all[, 'Relative place population density' := relative_value(city_density), by="keyword_strings"]
 
 
 #features from most_relevant_reviews
@@ -245,38 +255,38 @@ data_all <- merge(data_all, by="place_id", all.x=T, all.y=F,
 
 #features from backlink_data_websites
 data_all <- merge(data_all, backlink_data_websites, by="place_id", all.x=T, all.y=F)
-data_all[, 'Relative domain_rating' := rank(domain_rating, na.last="keep") / sum(!is.na(domain_rating)), by=keyword_strings]
-data_all[, 'Relative ahrefs_rank' := rank(ahrefs_rank, na.last="keep") / sum(!is.na(ahrefs_rank)), by=keyword_strings]
-data_all[, 'Relative ref_domains_total' := rank(ref_domains_total, na.last="keep") / sum(!is.na(ref_domains_total)), by=keyword_strings]
-data_all[, 'Relative ref_domains_dofollow' := rank(ref_domains_dofollow, na.last="keep") / sum(!is.na(ref_domains_dofollow)), by=keyword_strings]
-data_all[, 'Relative linked_domains' := rank(linked_domains, na.last="keep") / sum(!is.na(linked_domains)), by=keyword_strings]
-data_all[, 'Relative total_backlinks' := rank(total_backlinks, na.last="keep") / sum(!is.na(total_backlinks)), by=keyword_strings]
-data_all[, 'Relative backlinks_no_follow' := rank(backlinks_no_follow, na.last="keep") / sum(!is.na(backlinks_no_follow)), by=keyword_strings]
-data_all[, 'Relative total_keywords' := rank(total_keywords, na.last="keep") / sum(!is.na(total_keywords)), by=keyword_strings]
-data_all[, 'Relative total_traffic' := rank(total_traffic, na.last="keep") / sum(!is.na(total_traffic)), by=keyword_strings]
-
-
-#for xgboost rank modeling, rows have to be ordered by group
-setorder(data_all, keyword_strings, position)
+data_all[, 'Relative domain_rating' := relative_value(domain_rating), by=keyword_strings]
+data_all[, 'Relative ahrefs_rank' := relative_value(ahrefs_rank), by=keyword_strings]
+data_all[, 'Relative ref_domains_total' := relative_value(ref_domains_total), by=keyword_strings]
+data_all[, 'Relative ref_domains_dofollow' := relative_value(ref_domains_dofollow), by=keyword_strings]
+data_all[, 'Relative linked_domains' := relative_value(linked_domains), by=keyword_strings]
+data_all[, 'Relative total_backlinks' := relative_value(total_backlinks), by=keyword_strings]
+data_all[, 'Relative backlinks_no_follow' := relative_value(backlinks_no_follow), by=keyword_strings]
+data_all[, 'Relative total_keywords' := relative_value(total_keywords), by=keyword_strings]
+data_all[, 'Relative total_traffic' := relative_value(total_traffic), by=keyword_strings]
 
 ```
 
 
 ## Modelling
 
-The goal of the study is to find answers to three key questions:
+The goal of the statistical modelling in this study is to find answers to three key questions:
+
 1. How accurately can the rankings be predicted given the dependent variables?
 2. What are the most important features for the predictions?
 3. What is the direction of the impact?
 
-The method of choice for the study was gradient boosted decision trees (GBDT). GBDT is a widely used machine learning technique which can be used in many applications from regression or classification to learning to rank type of problems. In a learning to rank problem, there is a ordered list of items and the goal for the model is to calculate a score for each item based on dependent variables such that the original order is retained.
+The method of choice for the study was gradient boosted decision trees (GBDT). GBDT is a widely used machine learning technique which can be used in many settings from regression or classification to learning to rank type of problems. In a learning to rank problem, there is a ordered list of items and the goal for the model is to calculate a score for each item based on dependent variables such that the original order is retained. 
 
-In building the model, dataset was split to two folds: train data (containing ~70% of searches) and test data (the rest of the data, about 30%). GBDT model was fitted using training data, predictions were calculated for the test data set, and then finally, predictions were compared to real observed rankings. The chosen evaluation metric was Spearman's rank correlation coefficient. Spearman's rank correlation is a scaled measurement of the agreement of two rankings. Perfectly matching rankings would give value of 1, the expected value for random rankings is zero and reverse order would have value of -1.
+In process of building the model, data set was split to two folds: train data (containing around 70% of searches) and test data (the rest of the data, about 30%). GBDT model was fitted using training data, predictions were calculated for the test data set, and then finally predictions were compared to real observed rankings. The chosen evaluation metric was Spearman's rank correlation coefficient. Spearman's rank correlation is a scaled measurement of the agreement of two rankings. Perfectly matching rankings would give value of 1, the expected value for random rankings is zero and reverse order would have value of -1.
 
-The next step is to understand why the model makes particular predictions; what are the most important dependent variables and how their values effect the predictions? For this purpose SHapley Additive exPlanations (SHAP) values were calculated. SHAP each prediction is presented a sum of each dependent variable's responsibility. The overall impact can be measured as average of absolute values over the whole dataset.
+The next step is to understand why the model makes particular predictions; what are the most important dependent variables and how their values effect the predictions? For this purpose SHapley Additive exPlanations (SHAP) values were calculated. In SHAP each prediction is presented as a sum of each dependent variable's responsibility. Then the overall impact of any particular variable can be measured as a average of absolute values over the whole data set.
 
 
 ```{r model, cache=TRUE, echo = FALSE}
+#for xgboost rank modeling, rows have to be ordered by group
+setorder(data_all, keyword_strings, position)
+
 #split data to train and test sets based on search term
 set.seed(1)
 train_ratio <- 0.7
@@ -285,12 +295,12 @@ train_ids <- sample(ids, floor(train_ratio*length(ids)))
 test_ids <- setdiff(ids, train_ids)
 
 feature_cols <- c(
-'Relative review rating',
-'Relative reviews count',
-'Relative photos count',
-'Relative questions count',
+'Review rating',
+'Relative #reviews',
+'Relative #photos',
+'Relative #questions',
 
-'Google Ads',
+#'Has GoogleAd',
 'Provides updates',
 'Is business claimed',
 
@@ -303,25 +313,23 @@ feature_cols <- c(
 'Has instagram',
 'Has linkedin',
 
-'Keywords in description count',
-'Keywords in title count',
+'#Keywords in description',
+'#Keywords in title',
 'Has city in description',
 'Has city in title' ,
 'Has lawyer or attorney in title',
 'Has lawyer or attorney in description',
-'Has car in description',
-'Has car in title' ,
-'Has injury in description',
-'Has injury in title',
-'Character count in description', 
-'Character count in title', 
+'Has car accident or personal injury in description',
+'Has car accident or personal injury in title' ,
+'#Characters in description', 
+'#Characters in title', 
 
-'Type category personal injury attorney', 
-'Type category lawyer', 
-'Type category law firm',
-'Type category empty',
-'Type category criminal justice attorney',
-'Type category other', 
+'Type category is personal injury attorney', 
+'Type category is lawyer', 
+'Type category is law firm',
+'Type category is empty',
+'Type category is criminal justice attorney',
+'Type category is other', 
 
 'Has same city listed as in search query',
 
@@ -335,7 +343,7 @@ feature_cols <- c(
 'Review response ratio',
 'Time since previous review',
 
-'Relative review likes count',
+'Relative #review likes',
 
 'Question answer ratio',
 
@@ -406,12 +414,9 @@ shap_scores_test <- shap_values_test$shap_score
 ## Results
 
 #### Accuracy
-* Spearman's rank correlation
-  + Scaled measurement (values in [-1,1]) of the agreement of two rankings (here, observed vs predicted)
-  + Perfect prediction of rankings would get value 1
-  + Expected value of randomly assigned ranking is 0
-  + Reverse order ranking is -1
-  + In the plot below, showing the distribution of correlations calculated separately for each search  
+
+* Spearman's rank correlation:
+  + In the plot below, showing the distribution of correlations calculated separately for each search   + Overall correlation is about 0.6, showing fairly good fit between observations and predictions
   
 
 ```{r accuracy, cache=TRUE, echo = FALSE}
@@ -419,26 +424,28 @@ dc <- data_all[keyword_strings %in% test_ids,]
 dc[, pred := pred]
 dc <- dc[, list(correlation=cor(target, pred, method="spearman")), by="keyword_strings"]
 mean_correlation <- format(round(mean(dc$correlation), 2), nsmall = 2)
-prediction_plot <- ggplot(dc, aes(x = correlation)) + 
-  geom_histogram(fill="darkblue", color="white", binwidth=0.05) +
+spearman_plot <- ggplot(dc, aes(x = correlation)) + 
+  geom_histogram(fill="steelblue", color="white", binwidth=0.05) +
   xlab("Correlations for search rankings") +
   ylab("Count") + 
   labs(title = paste0("Mean Spearman's correlations between predicted and observed rankings: ", mean_correlation))
-plot(prediction_plot)
+plot(spearman_plot)
+
+if(save == T){ 
+  ggsave(here::here("plots", "spearman.pdf"), spearman_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+}
+
 ```
 
 ### Feature importance
 * SHapley Additive exPlanations (SHAP):
-  + Tries to explain model's predictions as a sum of each feature's responsibility 
-  + First plot shows average value of each features contribution over the whole dataset and can be interpreted as a overall importance for predictions
-  + Second plot shows the direction of the impact given feature's value. E.g. if the attribute google_ad got high value (high="Yes, low="No"), it's SHAP value is also highly positive; meaning it will increase the predicted ranking score, where as low value doesn't change much of anything. 
-  + https://towardsdatascience.com/explain-your-model-with-the-shap-values-bc36aac4de3d
-  + https://towardsdatascience.com/shap-explained-the-way-i-wish-someone-explained-it-to-me-ab81cc69ef30
-  + https://arxiv.org/abs/1705.07874
+  + First plot shows average value of each features contribution over the whole data set and can be interpreted as a overall importance for predictions
+  + Second plot shows the direction of the impact given feature's value. E.g. if the attribute "Has city in title" got high value (high="Yes, low="No"), it's SHAP value is also positive; meaning it will increase the predicted ranking score, where as low value doesn't change much of anything (SHAP close to zero). 
 
 ```{r importance, cache=TRUE, echo = FALSE}
 
-importance_plot <- ggplot(shap_importance, aes(x=reorder(feature, importance), y=importance, fill=importance)) +
+feature_importance_plot <- ggplot(shap_importance, aes(x=reorder(feature, importance), y=importance, fill=importance)) +
   geom_bar(stat='identity') + 
   scale_fill_gradient2(low = "red", mid ="yellow", high = "green", midpoint = 0) + 
   xlab("Feature") +
@@ -446,129 +453,129 @@ importance_plot <- ggplot(shap_importance, aes(x=reorder(feature, importance), y
   labs(title = "SHAP feature importance") + 
   theme(plot.title = element_text(hjust = 0.5), legend.position="none", axis.text.x=element_blank(), axis.ticks.x=element_blank()) + scale_y_continuous(limits=c(0.0,NA))+
   coord_flip()
-plot(importance_plot)
+plot(feature_importance_plot)
 
-shap.plot.summary.wrap2(shap_values$shap_score, X_train, dilute=10)
-```
+shap_values_plot <- shap.plot.summary.wrap2(shap_values$shap_score, X_train, dilute=10)
+plot(shap_values_plot)
 
-### Case studies
-```{r case, echo=FALSE}
-dc <- dc[order(dc$correlation),]
-
-create_result_dataframe <- function(key) {
-  rows <- which(data_test$keyword_strings == key)
-  res <- data.frame(feature1 = rep("", length(rows)),
-                    value1 = rep(0, length(rows)),
-                    shap1 = rep(0, length(rows)),
-                    feature2 = rep("", length(rows)),
-                    value2 = rep(0, length(rows)),
-                    shap2 = rep(0, length(rows)),
-                    predicted_score = rep(0, length(rows)),
-                    predicted_rank = rep(0, length(rows)),
-                    real_rank = rep(0, length(rows)),stringsAsFactors = F)
-  features <- names(shap_scores_test)
-  for(i in 1:length(rows)) {
-    values <- unlist(shap_scores_test[rows[i]])
-    top2 <- order(abs(values), decreasing=TRUE)[1:2]
-    res[i, 1] <- features[top2[1]]
-    res[i, 2] <- data_test[rows[i], features[top2[1]], with=F]
-    res[i, 3] <- values[top2[1]]
-    
-    res[i, 4] <- features[top2[2]]
-    res[i, 5] <- data_test[rows[i], features[top2[2]], with=F]
-    res[i, 6] <- values[top2[2]]
-    
-    res[i, 7] <- sum(values)
-    res[i, 9] <- y_best[i]
-  }
-  res[,8] <- rank(-res$predicted_score)
-  return(res)
+if(save == T){ 
+  ggsave(here::here("plots", "feature_importance.pdf"), feature_importance_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  ggsave(here::here("plots", "shap_values.pdf"), shap_values_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
 }
 
-best_case <- dc$keyword_strings[nrow(dc)]
-best_correlation <- format(round(dc$correlation[nrow(dc)], 2), nsmall = 2)
-X_best <- X_test[data_test$keyword_string == best_case,]
-y_best <- data_test[keyword_strings == best_case]$position
-scores_best <- predict(model, X_best)
-df_best <- create_result_dataframe(best_case)
-
-median_case <- dc$keyword_strings[floor(nrow(dc)/2)]
-median_correlation <- format(round(dc$correlation[floor(nrow(dc)/2)], 2), nsmall = 2)
-X_median <- X_test[data_test$keyword_string == median_case,]
-y_median <- data_test[keyword_strings == median_case]$position
-scores_median <- predict(model, X_median)
-df_median <- create_result_dataframe(median_case)
-
-worst_case <- dc$keyword_strings[1]
-worst_correlation <- format(round(dc$correlation[1], 2), nsmall = 2)
-X_worst <- X_test[data_test$keyword_string == worst_case,]
-y_worst <- data_test[keyword_strings == worst_case]$position
-scores_worst <- predict(model, X_worst)
-df_worst <- create_result_dataframe(worst_case)
 ```
 
-#### The most accurate predictions
-```{r best, results='asis', echo=FALSE}
-plot(y_best, scores_best, xlab="Observed rank", ylab="Predicted score", main=best_case, sub = paste0("Spearman's correlation: ", best_correlation))
-knitr::kable(df_best, caption = "Most important features and their impact on predictions for each seach result, ordered by position.")
-```
 
-#### Average case
-```{r median, results='asis', echo=FALSE}
-plot(y_median, scores_median, xlab="Observed rank", ylab="Predicted score", main=median_case, sub = paste0("Spearman's correlation: ", median_correlation))
-knitr::kable(df_median, caption = "Most important features and their impact on predictions for each seach result, ordered by position.")
-```
+## A closer look at the features
 
-#### The worst predictions
-```{r worst, results='asis', echo=FALSE}
-plot(y_worst, scores_worst, xlab="Observed rank", ylab="Predicted score", main=worst_case, sub = paste0("Spearman's correlation: ", worst_correlation))
-knitr::kable(df_worst, caption = "Most important features and their impact on predictions for each seach result, ordered by position.")
-```
+The depended variables used in this study can be roughly organized into five main groups, these are listed below and also showing a few important variables suggested by SHAP values.
 
-## Type category
-```{r type_category_plots, results='asis', echo=FALSE}
+* Location
+  + Has same city listed as in search query
+  + Relative place population
+
+* Popularity
+  + Relative #photos and #questions
+  + Relative ref_domains_dofollow
+
+* Type category
+  + Type category is personal injury attorney/lawyer
+
+* Keywords and title/description
+  + Has "lawyer or attorney"/city in title
+  + #Characters in description
+
+* Reviews
+  + Relative #reviews
+  + Review rating
+
+In terms of SEO, the first two categories are not much of a interest as they are something difficult or even impossible to change or adjust, but the last three are more interesting and worth further investigation. 
+
+```{r features, results='asis', echo=FALSE}
+#data for all visualizations
+#to make it cleaner to make plots, keep only searches with exactly 20 results. 
+#Ie. keep only searches with >= 20 results and then if more than 20, remove the extra rows
+#keeps about 90% of all rows
+data_vis <- data_all[group_size >= 20,]
+data_vis <- data_vis[, .SD[order(position) <= 20], by="keyword_strings"]
+data_vis <- data_vis[, position := rank(position, ties.method="first"), by="keyword_strings"]
+
+#helper function for printing
+to_percentage <- function(x, digits=2) {paste0(round(100*x, digits=digits), "%")}
+
+```  
+### Type category
+```{r type_category_table, results='asis', echo=FALSE}
 
 #gather basic info
-type_data <- data_all[google_ad =="No" & type_category != "", c("keyword", "type_category", "target"), with=F]
-type_data[type_category=="", type_category := "NA"]
-type_counts <- as.data.frame(sort(table(type_data$type_category), decreasing=T), stringsAsFactors = F)
+type_counts <- as.data.frame(sort(table(data_vis[type_category!=""]$type_category), decreasing=T), stringsAsFactors = F)
 names(type_counts)[1] <- "category"
-type_unique_data <- data_all[, list(N = length(unique(type_category))), by="keyword_strings"]
+type_unique_data <- data_vis[, list(N = length(unique(type_category))), by="keyword_strings"]
 
-#table
-type_basic <- data.table("Description" = character(), "Value" = character())
-type_basic <- rbind(type_basic, list('Total unique categories', length(unique(data_all$type_category)) - 1))
-type_basic <- rbind(type_basic, list('Missing type category', paste0(round(100*sum(data_all$type_category=="")/nrow(data_all), 2), "%")))
-type_basic <- rbind(type_basic, list('Categories with more than >=10 results', sum(type_counts$Freq>=10)))
-type_basic <- rbind(type_basic, list('Categories with more than >=100 results', sum(type_counts$Freq>=100)))
-type_basic <- rbind(type_basic, list('Categories with more than >=1000 results', sum(type_counts$Freq>=1000)))
-type_basic <- rbind(type_basic, list('Median unique categories in one search', median(type_unique_data$N)))
-type_basic <- rbind(type_basic, list('Min unique categories in one search', min(type_unique_data$N)))
-type_basic <- rbind(type_basic, list('Max unique categories in one search', max(type_unique_data$N)))
+#build table
+rs <- list()
+rs[[length(rs)+1]] <- list('Total unique categories', 
+                           length(unique(data_all$type_category)) - 1)
 
-knitr::kable(type_basic, caption = "Basic information about type categories")
+rs[[length(rs)+1]] <- list('Missing type category', 
+                         to_percentage(sum(data_all$type_category=="") / nrow(data_all)))
 
+rs[[length(rs)+1]] <- list('Categories with more than >=10 results', 
+                         sum(type_counts$Freq>=10))
 
+rs[[length(rs)+1]] <- list('Categories with more than >=100 results', 
+                           sum(type_counts$Freq>=100))
+
+rs[[length(rs)+1]] <- list('Categories with more than >=1000 results', 
+                           sum(type_counts$Freq>=1000))
+
+rs[[length(rs)+1]] <- list('Median unique categories in one search', 
+                           median(type_unique_data$N))
+
+rs[[length(rs)+1]] <- list('Min unique categories in one search', 
+                           min(type_unique_data$N))
+
+rs[[length(rs)+1]] <- list('Max unique categories in one search', 
+                           max(type_unique_data$N))
+
+type_table <- rbindlist(rs)
+setnames(type_table, 1:2, c("Type", "Value"))
+
+knitr::kable(type_table, caption = "Basic information about type categories")
+``` 
+
+```{r type_category_plots, results='asis', echo=FALSE}
 #plots
-freq_plot <- ggplot(data=type_counts[1:10,], aes(x=reorder(category, Freq), y=Freq)) +
+keep_top_N <- 10
+type_freq_plot <- ggplot(data=type_counts[1:keep_top_N,], aes(x=reorder(category, Freq), y=Freq)) +
   geom_bar(stat="identity", fill="steelblue") +
   ylab("Count") +
   xlab("Category") + 
   labs(title = "Ten most common type categories in search results") +
   theme(plot.title = element_text(hjust = 0.5)) +
   coord_flip()
-print(freq_plot)
+print(type_freq_plot)
 
 ps <- list()
 for(i in 1:6) {
-  ps[[i]] <- ggplot(type_data[type_category == type_counts$category[i]], aes(x=-target)) +
-  geom_histogram(color="white", fill="steelblue", binwidth=0.05) +
+  ps[[i]] <- ggplot(data_vis[type_category == type_counts$category[i]], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
   ylab("Count") +
   xlab("Position") + 
   labs(title = type_counts$category[i]) + 
   theme(plot.title = element_text(hjust = 0.5), axis.text.x=element_blank(), axis.ticks.x=element_blank())
 }
-grid.arrange(ps[[1]], ps[[2]], ps[[3]], ps[[4]], ps[[5]], ps[[6]], nrow=2, ncol=3, top = "Distribution of search positions for 6 most common type categories")
+type_position_plot <- grid.arrange(ps[[1]], ps[[2]], ps[[3]],
+             ps[[4]], ps[[5]], ps[[6]], nrow=2, ncol=3, top = "Distribution of search positions for 6 most common type categories")
+
+if(save == T){ 
+  ggsave(here::here("plots", "type_freq.pdf"), type_freq_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  ggsave(here::here("plots", "type_position.pdf"), type_position_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+}
 ```    
 
 Key takeaways:
@@ -577,8 +584,329 @@ Key takeaways:
 * Same thing occurs with specific, but less matching categories (Criminal justice attorney, Family law attorney)
 * However, some of these categories (Law firm, Criminal justice attorney, Legal services) have relatively large counts for top positions. One possible explanation is that these groups represent larger companies with high revenues and therefore would be ranked higher. 
 
+### Titles and descriptions
+```{r title_description_table, results='asis', echo=FALSE, message=FALSE}
 
 
-## Reviews
+#gather basic info about titles & descriptions
 
-## Title
+rs <- list()
+rs[[length(rs)+1]] <- list("Median character length (non missing)", 
+                           median(data_all[title!=""]$`#Characters in title`),
+                           median(data_all[description!=""]$`#Characters in description`))
+
+rs[[length(rs)+1]] <- list("Min character length (non missing)", 
+                           min(data_all[title!=""]$`#Characters in title`),
+                           min(data_all[description!=""]$`#Characters in description`))
+
+rs[[length(rs)+1]] <- list("Max character length (non missing)",
+                           max(data_all[title!=""]$`#Characters in title`),
+                           max(data_all[description!=""]$`#Characters in description`))
+
+rs[[length(rs)+1]] <- list('Missing', 
+                          to_percentage(sum(data_all$title=="") / nrow(data_all)),
+                          to_percentage(sum(data_all$description=="") / nrow(data_all)))
+
+rs[[length(rs)+1]] <- list("Containing lawyer or attorney", 
+                           to_percentage(sum(data_all$`Has lawyer or attorney in title`==1) / nrow(data_all)),
+                          to_percentage(sum(data_all$`Has lawyer or attorney in description`==1) / nrow(data_all)))
+
+rs[[length(rs)+1]] <- list("Containing car accident or personal injury", 
+                          to_percentage(sum(data_all$`Has car accident or personal injury in title`==1) / nrow(data_all)),
+                          to_percentage(sum(data_all$`Has car accident or personal injury in description`==1) / nrow(data_all)))
+
+rs[[length(rs)+1]] <- list("Containing city name", 
+                           to_percentage(sum(data_all$`Has city in title`==1) / nrow(data_all)),
+                           to_percentage(sum(data_all$`Has city in description`==1) / nrow(data_all)))
+
+title_description_table <- rbindlist(rs)
+setnames(title_description_table, 1:3, c("Type", "Title", "Description"))
+
+knitr::kable(title_description_table, caption = "Basic information about titles and descriptions")
+```
+
+```{r title_description_wordclouds, results='asis', echo=FALSE, message=FALSE}
+generate_wordcloud_data <- function(texts) {
+
+  #get words as a list of vectors
+  word_list <- lapply(texts, function(x) unlist(strsplit(x, " ")))
+  
+  #remove duplicates
+  word_list <- word_list[!duplicated(lapply(word_list, sort))]
+  
+  #clean up words
+  docs <- Corpus(VectorSource(word_list))
+  docs <- tm_map(docs, removeNumbers)
+  docs <- tm_map(docs, removePunctuation)
+  docs <- tm_map(docs, stripWhitespace)
+  docs <- tm_map(docs, content_transformer(tolower))
+  docs <- tm_map(docs, removeWords, stopwords("english"))
+  
+  #calculate dtm & freqs
+  dtm <- TermDocumentMatrix(docs) 
+  matrix <- as.matrix(dtm) 
+  words <- sort(rowSums(matrix),decreasing=TRUE) 
+  df <- data.frame(word = names(words),freq=words, stringsAsFactors = F)
+  
+  return(list(dtm = matrix, words = df))
+}
+
+#disable warnings
+defaultW <- getOption("warn")
+options(warn = -1)
+old_par <- par()
+
+words_titles <- generate_wordcloud_data(data_all[title!=""]$title)
+words_desc <- generate_wordcloud_data(data_all[description!=""]$description)
+
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "Descriptions word cloud")
+descriptions_wordcloud_plot <- wordcloud(words = words_desc$words$word, 
+                                         freq = words_desc$words$freq, min.freq = 3,
+                                         max.words=100, random.order=FALSE, rot.per=0.35,
+                                         colors=brewer.pal(8, "Dark2"))
+
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.5, "Titles word cloud")
+titles_wordcloud_plot <- wordcloud(words = words_titles$words$word, 
+                                   freq = words_titles$words$freq, min.freq = 3,
+                                   max.words=100, random.order=FALSE, rot.per=0.35,
+                                   colors=brewer.pal(8, "Dark2"))
+
+#back to default
+par(old_par) 
+options(warn = defaultW)
+
+if(save == T){ 
+  ggsave(here::here("plots", "titles_wordcloud.pdf"), titles_wordcloud_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  ggsave(here::here("plots", "descriptions_wordcloud.pdf"), descriptions_wordcloud_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  
+}
+```
+
+```{r title_description_plots, results='asis', echo=FALSE, message=FALSE}
+plot_count_title <- ggplot(data_vis, aes(position, `#Characters in title`)) +
+  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE) +
+  scale_fill_distiller(palette=4, direction=1) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme( legend.position='none') +
+  labs(title = "Title") +
+  ylab("#Characters") +
+  xlab("Position") 
+plot_count_description <- ggplot(data_vis, aes(position, (`#Characters in description`))) +
+  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE) +
+  scale_fill_distiller(palette=4, direction=1) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme( legend.position='none') +
+  labs(title = "Description") +
+  ylab("#Characters") +
+  xlab("Position") 
+title_description_counts_plot <- grid.arrange(plot_count_title, plot_count_description, nrow=1, ncol=2, top="#Characters vs position")
+
+plot_missing_description <- ggplot(data_vis[description==""], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Yes") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot_not_missing_description <- ggplot(data_vis[description!=""], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "No") +
+  theme(plot.title = element_text(hjust = 0.5))
+description_missing_plot <- grid.arrange(plot_missing_description, plot_not_missing_description, nrow=1, ncol=2, top="Empty description")
+
+
+plot_car_personal_desc0 <- ggplot(data_vis[`Has car accident or personal injury in description` == 0], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "No \"car accident\" or \"personal injury\"") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot_car_personal_desc1 <- ggplot(data_vis[`Has car accident or personal injury in description` == 1], aes(x=position)) +
+   geom_histogram(color="white", fill="steelblue", bins=20) +
+   ylab("Count") +
+   xlab("Position") + 
+   labs(title = "Has \"car accident\" or \"personal injury\"") +
+   theme(plot.title = element_text(hjust = 0.5))
+plot_car_personal_title0 <- ggplot(data_vis[`Has car accident or personal injury in title` == 0], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "No \"car accident\" or \"personal injury\"") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot_car_personal_title1 <- ggplot(data_vis[`Has car accident or personal injury in title` == 1], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Has \"car accident\" or \"personal injury\"") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+plot_lawyer_attorney_desc0 <- ggplot(data_vis[`Has lawyer or attorney in description` == 0], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "No \"lawyer\" or \"attorney\"") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot_lawyer_attorney_desc1 <- ggplot(data_vis[`Has lawyer or attorney in description` == 1], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Has \"lawyer\" or \"attorney\"") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot_lawyer_attorney_title0 <- ggplot(data_vis[`Has lawyer or attorney in title` == 0], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "No \"lawyer\" or \"attorney\"") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot_lawyer_attorney_title1 <- ggplot(data_vis[`Has lawyer or attorney in title` == 1], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Has \"lawyer\" or \"attorney\"") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+plot_city_desc0 <- ggplot(data_vis[`Has same city listed as in search query`==1], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "No city name") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot_city_desc1 <- ggplot(data_vis[`Has city in description` == 1], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Has city name") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot_city_title0 <- ggplot(data_vis[`Has city in title` == 0], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "No city name") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot_city_title1 <- ggplot(data_vis[`Has city in title` == 1], aes(x=position)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Has city name") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+title_keywords_plot <- grid.arrange(plot_car_personal_title0, plot_car_personal_title1,
+             plot_lawyer_attorney_title0, plot_lawyer_attorney_title1,
+             plot_city_title0, plot_city_title1,
+             nrow=3, ncol=2, top="Title containing keywords")
+
+description_keywords_plot <- grid.arrange(plot_car_personal_desc0, plot_car_personal_desc1,
+             plot_lawyer_attorney_desc0,  plot_lawyer_attorney_desc1,
+             plot_city_desc0, plot_city_desc1,
+             nrow=3, ncol=2, top="Description containing keywords")
+
+if(save == T){ 
+  ggsave(here::here("plots", "title_description_counts.pdf"), title_description_counts_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  ggsave(here::here("plots", "description_missing.pdf"), description_missing_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  ggsave(here::here("plots", "title_keywords.pdf"), title_keywords_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  ggsave(here::here("plots", "description_keywords.pdf"), description_keywords_plot, 
+         width = 12.5, height = 8, device = cairo_pdf)
+  
+}
+```  
+
+Key takeaways:
+
+* In general, length of titles/descriptions doesn't correlate with positions
+* The only exception is businesses with missing description; they tend to have clearly lower positions in results
+* In all cases with different keywords, search results containing keyword in title/description have lower positions on average than entries without
+* The effect is more noticeable for titles than descriptions
+* Also, more specific words (both city name and "car accident"/"personal injury") have higher effect then lawyer/attorney
+
+### Reviews
+```{r reviews_table, results='asis', echo=FALSE}
+
+rs <- list()
+rs[[length(rs)+1]] <- list("Median #reviews", 
+                           median(data_all$reviews, na.rm=T))
+
+rs[[length(rs)+1]] <- list("Max #reviews", 
+                           max(data_all$reviews, na.rm=T))
+
+rs[[length(rs)+1]] <- list("No reviews available", 
+                           to_percentage(sum(is.na(data_all$rating)) / nrow(data_all)))
+
+rs[[length(rs)+1]] <- list("Average rating", 
+                           round(mean(data_all$rating, na.rm=T), digits=2))
+
+rs[[length(rs)+1]] <- list("Response ratio by owners", 
+                          to_percentage(sum(all_reviews$all_reviews_response_from_owner!="")/nrow(all_reviews)))
+
+rs[[length(rs)+1]] <- list("Average number of likes per review", 
+                           round(mean(all_reviews$all_reviews_number_of_likes, na.rm=T), digits=2))
+
+rating_table <- rbindlist(rs)
+setnames(rating_table, 1:2, c("Type", "Value"))
+
+knitr::kable(rating_table, caption = "Basic information about reviews")
+```  
+
+```{r reviews_plots, results='asis', echo=FALSE}
+
+rating_distribution_plot <- ggplot(all_reviews, aes(x=all_reviews_rating)) +
+  geom_histogram(color="white", fill="steelblue", bins=20) +
+  ylab("Count") +
+  xlab("Rating") + 
+  labs(title = "Ratings distribution") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  coord_flip()
+plot(rating_distribution_plot)
+
+review_position_plot <- ggplot(data_vis, aes(position, `Relative #reviews`)) +
+  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE) +
+  scale_fill_distiller(palette=4, direction=1) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme(legend.position='none' ) +
+  ylab("Relative #reviews") +
+  xlab("Position") 
+plot(review_position_plot)
+
+rating_position_plot <- ggplot(data_vis[!is.na(`Review rating`)], aes(position, `Review rating`)) +
+  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE) +
+  scale_fill_distiller(palette=4, direction=1) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme( legend.position='none') +
+  ylab("Review rating") +
+  xlab("Position") 
+plot(rating_position_plot)
+
+if(save == T){ 
+  ggsave(here::here("plots", "rating_distribution.pdf"), rating_distribution_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  ggsave(here::here("plots", "review_position.pdf"), review_position_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  ggsave(here::here("plots", "rating_position.pdf"), rating_position_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  
+  rating_distribution_plot
+}
+```  
+
+Key takeaways:
+
+* Businesses with highest number of reviews tend to have the lowest positions (top left corner)
+* In contrast, low number of reviews correlates with higher position (bottom right)
+* Perhaps surprisingly, ratings themself don't seem to practically any effect on page's position, only activity matters. 
+* But then on the other hand, if almost 90% of ratings are five stars and average rating is over 4.5, maybe there just isn't much room for a differentiation.
+
