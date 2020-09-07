@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
   }
 
   #load required packages, if package is not found try to install
-  required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "ggplot2", "gridExtra", "wordcloud", "tm")
+  required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "ggplot2", "gridExtra", "wordcloud", "tm", "grDevices")
 
   not_installed_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
   if(length(not_installed_packages) > 0) 
@@ -243,7 +243,6 @@ for(i in 1:nrow(data_all)) {
   data_all[i, city_density := den]
  }
 data_all[, 'Relative place population' := relative_value(city_population), by="keyword_strings"]
-data_all[, 'Relative place population density' := relative_value(city_density), by="keyword_strings"]
 
 
 #features from most_relevant_reviews
@@ -358,8 +357,6 @@ feature_cols <- c(
 'Relative total_traffic',
 
 'Relative place population',
-'Relative place population density',
-
 'Mean of most relevant ratings')
 
 data_train <- data_all[keyword_strings %in% train_ids, ]
@@ -415,9 +412,8 @@ shap_scores_test <- shap_values_test$shap_score
 
 #### Accuracy
 
-* Spearman's rank correlation:
-  + In the plot below, showing the distribution of correlations calculated separately for each search   + Overall correlation is about 0.6, showing fairly good fit between observations and predictions
-  
+* In the plot below, showing the distribution of correlations calculated separately for each search
+* Overall mean correlation is about 0.6, showing fairly good fit between observations and predictions
 
 ```{r accuracy, cache=TRUE, echo = FALSE}
 dc <- data_all[keyword_strings %in% test_ids,]
@@ -439,9 +435,16 @@ if(save == T){
 ```
 
 ### Feature importance
-* SHapley Additive exPlanations (SHAP):
-  + First plot shows average value of each features contribution over the whole data set and can be interpreted as a overall importance for predictions
-  + Second plot shows the direction of the impact given feature's value. E.g. if the attribute "Has city in title" got high value (high="Yes, low="No"), it's SHAP value is also positive; meaning it will increase the predicted ranking score, where as low value doesn't change much of anything (SHAP close to zero). 
+
+* The first plot is showing feature importance, that is, each feature's average contribution to model's predictions. 
+  
+* Second plot shows the direction of the impact given feature's value. 
+
+* Overall, the most interesting features for us to look at are a) high in the first plot and b) show clear pattern in the second plot. 
+
+* E.g. if we look at the first row and the feature named "Has same city listed as in search query", we can see kind of polarized distribution of SHAP values around zero. Yellow points correspond to high feature values (in this case, "No") and here their impact to all predictions in the data set is negative and therefore making model belief that predicted positions should be worse for them. Where as purple points correspond to high feature values ("Yes") and have positive impact for predicted positions.
+
+* Similarly, "Type category is personal injury" and "Type category is personal injury" are similar too the "Has same city listed as in search query". Ie. if they have value "Yes" they will impact positively to predicted positions.
 
 ```{r importance, cache=TRUE, echo = FALSE}
 
@@ -455,7 +458,7 @@ feature_importance_plot <- ggplot(shap_importance, aes(x=reorder(feature, import
   coord_flip()
 plot(feature_importance_plot)
 
-shap_values_plot <- shap.plot.summary.wrap2(shap_values$shap_score, X_train, dilute=10)
+shap_values_plot <- shap.plot.summary.wrap2(shap_values$shap_score, X_train, dilute=3)
 plot(shap_values_plot)
 
 if(save == T){ 
@@ -477,8 +480,8 @@ The depended variables used in this study can be roughly organized into five mai
   + Relative place population
 
 * Popularity
-  + Relative #photos and #questions
-  + Relative ref_domains_dofollow
+  + Relative #photos 
+  + Relative #questions
 
 * Type category
   + Type category is personal injury attorney/lawyer
@@ -659,6 +662,10 @@ old_par <- par()
 words_titles <- generate_wordcloud_data(data_all[title!=""]$title)
 words_desc <- generate_wordcloud_data(data_all[description!=""]$description)
 
+
+if(save) {
+  pdf(here::here("plots", "descriptions_wordcloud.pdf"), width=12.5, height=8)
+}
 layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
 par(mar=rep(0, 4))
 plot.new()
@@ -667,7 +674,13 @@ descriptions_wordcloud_plot <- wordcloud(words = words_desc$words$word,
                                          freq = words_desc$words$freq, min.freq = 3,
                                          max.words=100, random.order=FALSE, rot.per=0.35,
                                          colors=brewer.pal(8, "Dark2"))
+if(save) {
+  dev.off()
+}
 
+if(save == T) {
+  pdf(here::here("plots", "titles_wordcloud.pdf"), width=12.5, height=8)
+}
 layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
 par(mar=rep(0, 4))
 plot.new()
@@ -677,39 +690,30 @@ titles_wordcloud_plot <- wordcloud(words = words_titles$words$word,
                                    max.words=100, random.order=FALSE, rot.per=0.35,
                                    colors=brewer.pal(8, "Dark2"))
 
+if(save == T) {
+  dev.off()
+}
+
 #back to default
 par(old_par) 
 options(warn = defaultW)
 
-if(save == T){ 
-  ggsave(here::here("plots", "titles_wordcloud.pdf"), titles_wordcloud_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
-  ggsave(here::here("plots", "descriptions_wordcloud.pdf"), descriptions_wordcloud_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
-  
-}
 ```
 
 ```{r title_description_plots, results='asis', echo=FALSE, message=FALSE}
-plot_count_title <- ggplot(data_vis, aes(position, `#Characters in title`)) +
-  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE) +
-  scale_fill_distiller(palette=4, direction=1) +
-  scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(expand = c(0, 0)) +
-  theme( legend.position='none') +
+plot_count_title <- ggplot(data_vis["title"!=""], aes(y=`#Characters in title`, x=as.factor(position))) +
+  geom_boxplot(color="white", fill="steelblue") +
+  ylab("#Characters") +
+  xlab("Position") +
   labs(title = "Title") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot_count_description <-  ggplot(data_vis[description!=""], aes(y=`#Characters in description`, x=as.factor(position))) +
+  geom_boxplot(color="white", fill="steelblue") +
   ylab("#Characters") +
-  xlab("Position") 
-plot_count_description <- ggplot(data_vis, aes(position, (`#Characters in description`))) +
-  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE) +
-  scale_fill_distiller(palette=4, direction=1) +
-  scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(expand = c(0, 0)) +
-  theme( legend.position='none') +
+  xlab("Position") +
   labs(title = "Description") +
-  ylab("#Characters") +
-  xlab("Position") 
-title_description_counts_plot <- grid.arrange(plot_count_title, plot_count_description, nrow=1, ncol=2, top="#Characters vs position")
+  theme(plot.title = element_text(hjust = 0.5))
+title_description_counts_plot <- grid.arrange(plot_count_title, plot_count_description, nrow=1, ncol=2, top="Non-empty title and description length boxplots")
 
 plot_missing_description <- ggplot(data_vis[description==""], aes(x=position)) +
   geom_histogram(color="white", fill="steelblue", bins=20) +
@@ -826,7 +830,7 @@ if(save == T){
 
 Key takeaways:
 
-* In general, length of titles/descriptions doesn't correlate with positions
+* In general, length of titles/descriptions don't correlate much with positions
 * The only exception is businesses with missing description; they tend to have clearly lower positions in results
 * In all cases with different keywords, search results containing keyword in title/description have lower positions on average than entries without
 * The effect is more noticeable for titles than descriptions
@@ -871,24 +875,20 @@ rating_distribution_plot <- ggplot(all_reviews, aes(x=all_reviews_rating)) +
   coord_flip()
 plot(rating_distribution_plot)
 
-review_position_plot <- ggplot(data_vis, aes(position, `Relative #reviews`)) +
-  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE) +
-  scale_fill_distiller(palette=4, direction=1) +
-  scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(expand = c(0, 0)) +
-  theme(legend.position='none' ) +
+review_position_plot <- ggplot(data_vis, aes(y=`Relative #reviews`, x=as.factor(position))) +
+  geom_boxplot(color="white", fill="steelblue") +
   ylab("Relative #reviews") +
-  xlab("Position") 
+  xlab("Position") +
+  labs(title = "Relative #reviews boxplot") +
+  theme(plot.title = element_text(hjust = 0.5))
 plot(review_position_plot)
 
-rating_position_plot <- ggplot(data_vis[!is.na(`Review rating`)], aes(position, `Review rating`)) +
-  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE) +
-  scale_fill_distiller(palette=4, direction=1) +
-  scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(expand = c(0, 0)) +
-  theme( legend.position='none') +
+rating_position_plot <- ggplot(data_vis[!is.na(`Review rating`)], aes(y=`Review rating`, x=as.factor(position))) +
+  geom_boxplot(color="white", fill="steelblue") +
   ylab("Review rating") +
-  xlab("Position") 
+  xlab("Position") +
+  labs(title = "Review rating boxplot") +
+  theme(plot.title = element_text(hjust = 0.5))
 plot(rating_position_plot)
 
 if(save == T){ 
@@ -899,7 +899,8 @@ if(save == T){
   ggsave(here::here("plots", "rating_position.pdf"), rating_position_plot, 
          width = 12.5, height = 8, device = cairo_pdf) 
   
-  rating_distribution_plot
+  description_missing_plot <- grid.arrange(plot_missing_description, plot_not_missing_description, nrow=1, ncol=2, top="Empty description")
+
 }
 ```  
 
@@ -910,3 +911,105 @@ Key takeaways:
 * Perhaps surprisingly, ratings themself don't seem to practically any effect on page's position, only activity matters. 
 * But then on the other hand, if almost 90% of ratings are five stars and average rating is over 4.5, maybe there just isn't much room for a differentiation.
 
+
+### Provides updates on Google
+
+```{r provides_updates_plot, results='asis', echo=FALSE}
+updates0 <- ggplot(data_vis[`Provides updates` == 0], aes(x=position)) +
+    geom_histogram(color="white", fill="steelblue", bins=20) +
+    ylab("Count") +
+    xlab("Position") + 
+    labs(title = "No") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+updates1 <- ggplot(data_vis[`Provides updates` == 1], aes(x=position)) +
+    geom_histogram(color="white", fill="steelblue", bins=20) +
+    ylab("Count") +
+    xlab("Position") + 
+    labs(title = "Yes") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+provides_updates_plot <- grid.arrange(updates1, updates0, nrow=1, ncol=2, top="Provides updates on Google")
+
+if(save == T){ 
+  ggsave(here::here("plots", "provides_updates.pdf"), provides_updates_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+}
+``` 
+
+### Backlink
+
+```{r ref_domains_dofollow_table, results='asis', echo=FALSE}
+
+rs <- list()
+rs[[length(rs)+1]] <- list('Median', 
+                           median(data_all$ref_domains_dofollow, na.rm=T),
+                           median(data_all$total_traffic, na.rm=T),
+                           median(data_all$ahrefs_rank, na.rm=T))
+
+rs[[length(rs)+1]] <- list('Min', 
+                           min(data_all$ref_domains_dofollow, na.rm=T),
+                           min(data_all$total_traffic, na.rm=T),
+                           min(data_all$ahrefs_rank, na.rm=T))
+
+rs[[length(rs)+1]] <- list('Max', 
+                           max(data_all$ref_domains_dofollow, na.rm=T),
+                           max(data_all$total_traffic, na.rm=T),
+                           max(data_all$ahrefs_rank, na.rm=T))
+
+rs[[length(rs)+1]] <- list("Missing", 
+                           to_percentage(sum(is.na(data_all$ref_domains_dofollow)) / nrow(all_reviews)),
+                           to_percentage(sum(is.na(data_all$total_traffic)) / nrow(all_reviews)),
+                           to_percentage(sum(is.na(data_all$ahrefs_rank)) / nrow(all_reviews)))
+
+ref_domains_dofollow_table <- rbindlist(rs)
+setnames(ref_domains_dofollow_table, 1:4, c("Type", "ref_domains_dofollow", "total_traffic", "ahrefs_rank"))
+
+knitr::kable(ref_domains_dofollow_table, caption = "Basic information about ref_domains_dofollow and total_traffic")
+
+```
+
+```{r ref_domains_dofollow_plots, results='asis', echo=FALSE}
+ref_domains_dofollow_plot <- ggplot(data_vis[!is.na(`Relative ref_domains_dofollow`)],
+       aes(y=`Relative ref_domains_dofollow`, x=as.factor(position))) +
+  geom_boxplot(color="white", fill="steelblue") +
+  ylab("Relative ref_domains_dofollow") +
+  xlab("Position") +
+  labs(title = "Relative ref_domains_dofollow boxplot") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot(ref_domains_dofollow_plot)
+
+total_traffic_plot <- ggplot(data_vis[!is.na(`Relative total_traffic`)],
+       aes(y=`Relative total_traffic`, x=as.factor(position))) +
+  geom_boxplot(color="white", fill="steelblue") +
+  ylab("Relative total_traffic") +
+  xlab("Position") +
+  labs(title = "Relative total_traffic boxplot") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot(total_traffic_plot)
+
+ahrefs_rank_plot <- ggplot(data_vis[!is.na(`Relative ahrefs_rank`)],
+       aes(y=`Relative ahrefs_rank`, x=as.factor(position))) +
+  geom_boxplot(color="white", fill="steelblue") +
+  ylab("Relative ahrefs_rank") +
+  xlab("Position") +
+  labs(title = "Relative ahrefs_rank boxplot") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot(ahrefs_rank_plot)
+
+if(save == T){ 
+  ggsave(here::here("plots", "ref_domains_dofollow.pdf"), ref_domains_dofollow_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  
+  ggsave(here::here("plots", "total_traffic.pdf"), total_traffic_plot, 
+         width = 12.5, height = 8, device = cairo_pdf)
+    
+  ggsave(here::here("plots", "ahrefs_rank.pdf"), ahrefs_rank_plot, 
+         width = 12.5, height = 8, device = cairo_pdf)
+}
+```  
+
+Key takeaways:
+
+* Higher ref_domains_dofollow and total_traffic are more common for better positions
+* ahrefs_rank seems to be telling the same story, the only difference is that small number for rank is better, so the shape is inverted
