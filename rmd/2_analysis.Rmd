@@ -945,27 +945,31 @@ rs <- list()
 rs[[length(rs)+1]] <- list('Median', 
                            median(data_all$ref_domains_dofollow, na.rm=T),
                            median(data_all$total_traffic, na.rm=T),
-                           median(data_all$ahrefs_rank, na.rm=T))
+                           median(data_all$ahrefs_rank, na.rm=T),
+                           median(data_all$domain_rating, na.rm=T))
 
 rs[[length(rs)+1]] <- list('Min', 
                            min(data_all$ref_domains_dofollow, na.rm=T),
                            min(data_all$total_traffic, na.rm=T),
-                           min(data_all$ahrefs_rank, na.rm=T))
+                           min(data_all$ahrefs_rank, na.rm=T),
+                           min(data_all$domain_rating, na.rm=T))
 
 rs[[length(rs)+1]] <- list('Max', 
                            max(data_all$ref_domains_dofollow, na.rm=T),
                            max(data_all$total_traffic, na.rm=T),
-                           max(data_all$ahrefs_rank, na.rm=T))
+                           max(data_all$ahrefs_rank, na.rm=T),
+                           max(data_all$domain_rating, na.rm=T))
 
 rs[[length(rs)+1]] <- list("Missing", 
                            to_percentage(sum(is.na(data_all$ref_domains_dofollow)) / nrow(all_reviews)),
                            to_percentage(sum(is.na(data_all$total_traffic)) / nrow(all_reviews)),
-                           to_percentage(sum(is.na(data_all$ahrefs_rank)) / nrow(all_reviews)))
+                           to_percentage(sum(is.na(data_all$ahrefs_rank)) / nrow(all_reviews)),
+                           to_percentage(sum(is.na(data_all$domain_rating)) / nrow(all_reviews)))
 
-ref_domains_dofollow_table <- rbindlist(rs)
-setnames(ref_domains_dofollow_table, 1:4, c("Type", "ref_domains_dofollow", "total_traffic", "ahrefs_rank"))
+backlink_table <- rbindlist(rs)
+setnames(backlink_table, 1:5, c("Type", "ref_domains_dofollow", "total_traffic", "ahrefs_rank", "domain_rating"))
 
-knitr::kable(ref_domains_dofollow_table, caption = "Basic information about ref_domains_dofollow and total_traffic")
+knitr::kable(backlink_table, caption = "Basic information about backlinks")
 
 ```
 
@@ -997,6 +1001,15 @@ ahrefs_rank_plot <- ggplot(data_vis[!is.na(`Relative ahrefs_rank`)],
   theme(plot.title = element_text(hjust = 0.5))
 plot(ahrefs_rank_plot)
 
+domain_rating_plot <- ggplot(data_vis[!is.na(`Relative domain_rating`)],
+       aes(y=`Relative domain_rating`, x=as.factor(position))) +
+  geom_boxplot(color="white", fill="steelblue") +
+  ylab("Relative domain_rating") +
+  xlab("Position") +
+  labs(title = "Relative domain_rating boxplot") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot(domain_rating_plot)
+
 if(save == T){ 
   ggsave(here::here("plots", "ref_domains_dofollow.pdf"), ref_domains_dofollow_plot, 
          width = 12.5, height = 8, device = cairo_pdf) 
@@ -1005,6 +1018,9 @@ if(save == T){
          width = 12.5, height = 8, device = cairo_pdf)
     
   ggsave(here::here("plots", "ahrefs_rank.pdf"), ahrefs_rank_plot, 
+         width = 12.5, height = 8, device = cairo_pdf)
+  
+  ggsave(here::here("plots", "domain_rating.pdf"), domain_rating_plot, 
          width = 12.5, height = 8, device = cairo_pdf)
 }
 ```  
