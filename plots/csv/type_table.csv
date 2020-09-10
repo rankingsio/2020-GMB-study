@@ -1,0 +1,9 @@
+Type,Value
+Total unique categories,72
+Missing type category,1.99%
+Categories with more than >=10 results,26
+Categories with more than >=100 results,13
+Categories with more than >=1000 results,3
+Median unique categories in one search,4
+Min unique categories in one search,1
+Max unique categories in one search,11
