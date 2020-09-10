@@ -9,14 +9,14 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r results=FALSE, message=FALSE, echo=FALSE}
-  save <- F
+  save <- T
   #create plots folder, if it doesn't exist
   if(save && !dir.exists(here::here("plots"))) {
       dir.create(here::here("plots"))
   }
 
   #load required packages, if package is not found try to install
-  required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "ggplot2", "gridExtra", "wordcloud", "tm", "grDevices")
+  required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "ggplot2", "gridExtra", "wordcloud", "tm", "grDevices", "here", "pdftools")
 
   not_installed_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
   if(length(not_installed_packages) > 0) 
@@ -109,14 +109,15 @@ All variables with prefix "Relative" are calculated as rank(values) / length(val
 
 
 #read csv
-basic <- fread("raw_data/GMB data/basic.csv")
-social_profile <- fread("raw_data/GMB data/social_profile.csv")
-user_review_featured <- fread("raw_data/GMB data/user_review_featured.csv")
-q_a <- fread("raw_data/GMB data/q_a.csv")
-all_reviews <- fread("raw_data/GMB data/all_reviews.csv")
-backlink_data_websites <- fread("raw_data/GMB data/backlink_data_websites.csv")
-cities <- fread("raw_data/uscities_raw.csv")
-most_relevant_reviews <- fread("raw_data/GMB data/most_relevant_reviews.csv")
+here::here("raw_data", "GMB data", "basic.csv")
+basic <- fread(here::here("raw_data", "GMB data", "basic.csv"))
+social_profile <- fread(here::here("raw_data", "GMB data", "social_profile.csv"))
+user_review_featured <- fread(here::here("raw_data", "GMB data", "user_review_featured.csv"))
+q_a <- fread(here::here("raw_data", "GMB data", "q_a.csv"))
+all_reviews <- fread(here::here("raw_data", "GMB data", "all_reviews.csv"))
+backlink_data_websites <- fread(here::here("raw_data", "GMB data", "backlink_data_websites.csv"))
+cities <- fread(here::here("raw_data", "uscities_raw.csv"))
+most_relevant_reviews <- fread(here::here("raw_data", "GMB data", "most_relevant_reviews.csv"))
 
 #keep only the latest scraped rows for social_profile
 social_profile[, scraping_date := as.Date(scraping_date)]
@@ -415,7 +416,7 @@ shap_scores_test <- shap_values_test$shap_score
 * In the plot below, showing the distribution of correlations calculated separately for each search
 * Overall mean correlation is about 0.6, showing fairly good fit between observations and predictions
 
-```{r accuracy, cache=TRUE, echo = FALSE}
+```{r accuracy, echo = FALSE}
 dc <- data_all[keyword_strings %in% test_ids,]
 dc[, pred := pred]
 dc <- dc[, list(correlation=cor(target, pred, method="spearman")), by="keyword_strings"]
@@ -446,7 +447,7 @@ if(save == T){
 
 * Similarly, "Type category is personal injury" and "Type category is personal injury" are similar too the "Has same city listed as in search query". Ie. if they have value "Yes" they will impact positively to predicted positions.
 
-```{r importance, cache=TRUE, echo = FALSE}
+```{r importance, echo = FALSE}
 
 feature_importance_plot <- ggplot(shap_importance, aes(x=reorder(feature, importance), y=importance, fill=importance)) +
   geom_bar(stat='identity') + 
@@ -1029,3 +1030,19 @@ Key takeaways:
 
 * Higher ref_domains_dofollow and total_traffic are more common for better positions
 * ahrefs_rank seems to be telling the same story, the only difference is that small number for rank is better, so the shape is inverted
+
+```{r convert_to_pngs, results='asis', echo=FALSE}
+  if(save == T) {
+    pdfs <- list.files(here::here("plots"), pattern = "*.pdf")
+    
+    if(!dir.exists(here::here("plots", "png"))) {
+      dir.create(here::here("plots", "png"))
+    }
+    setwd(here::here("plots", "png"))
+
+    for(pdf in pdfs) {
+      pdf_convert(pdf = here::here("plots", pdf), format = "png", dpi = 720)
+    }
+  }
+
+```  

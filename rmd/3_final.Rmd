@@ -2,17 +2,17 @@
 title: "Google My Business Ranking Study for Personal Injury Lawyers"
 output: html_document
 ---
-
-<style>
-.list-group-item.active, .list-group-item.active:hover, .list-group-item.active:focus {
-  background-color: #00d188;
-  border-color: #00d188;
-}
+  
+  <style>
+  .list-group-item.active, .list-group-item.active:hover, .list-group-item.active:focus {
+    background-color: #00d188;
+      border-color: #00d188;
+  }
 
 body {
   font-family: montserrat;
   color: #444444;
-  font-size: 14px;
+    font-size: 14px;
 }
 
 h1 {
@@ -33,11 +33,79 @@ h3 {
   font-size: 18px;
 }
 </style>
+  
+  # 1. Introduction
+  
+  
+  
+  # 2. Methodology
+  
+  
+  # Model
+```{r spearman, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "spearman_1.png"))
+```
+```{r shap_values, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "shap_values_1.png"))
+```
 
-# 1. Introduction
+
+  # Type category
+```{r type_freq, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "type_freq_1.png"))
+```
+```{r type_position, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "type_position_1.png"))
+```
 
 
+  # Title and description
+```{r titles_wordcloud, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "titles_wordcloud_1.png"))
+```
+```{r descriptions_wordcloud, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "descriptions_wordcloud_1.png"))
+```
+```{r title_description_counts, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "title_description_counts_1.png"))
+```
+```{r description_missing, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "description_missing_1.png"))
+```
+```{r description_keywords, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "description_keywords_1.png"))
+```
+```{r title_keywords, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "title_keywords_1.png"))
+```
 
-# 2. Methodology
 
+  # Reviews
+```{r rating_distribution, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "rating_distribution_1.png"))
+```
+```{r review_position, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "review_position_1.png"))
+```
 
+  
+  #Provided updates
+```{r provides_updates, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "provides_updates_1.png"))
+```
+  
+  # Backlink
+```{r ref_domains_dofollow, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "ref_domains_dofollow_1.png"))
+```
+```{r total_traffic, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "total_traffic_1.png"))
+```
+```{r ahrefs_rank, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "ahrefs_rank_1.png"))
+```
+```{r domain_rating, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "domain_rating_1.png"))
+```
+
+    
