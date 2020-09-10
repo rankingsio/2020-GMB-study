@@ -45,6 +45,9 @@ h3 {
 ```{r spearman, echo=FALSE, out.width = '90%'}
   knitr::include_graphics(here::here("plots", "png", "spearman_1.png"))
 ```
+```{r feature_importance, echo=FALSE, out.width = '90%'}
+  knitr::include_graphics(here::here("plots", "png", "feature_importance_1.png"))
+```
 ```{r shap_values, echo=FALSE, out.width = '90%'}
   knitr::include_graphics(here::here("plots", "png", "shap_values_1.png"))
 ```
