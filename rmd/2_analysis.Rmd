@@ -12,7 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
   save <- T
   #create plots folder, if it doesn't exist
   if(save && !dir.exists(here::here("plots"))) {
-      dir.create(here::here("plots"))
+    dir.create(here::here("plots"))
+    dir.create(here::here("plots", "png"))
+    dir.create(here::here("plots", "csv"))
   }
 
   #load required packages, if package is not found try to install
@@ -548,6 +550,10 @@ type_table <- rbindlist(rs)
 setnames(type_table, 1:2, c("Type", "Value"))
 
 knitr::kable(type_table, caption = "Basic information about type categories")
+
+if(save == T){ 
+  write.csv(type_table, here::here("plots", "csv", "type_table.csv"), row.names = F, quote=F)
+}
 ``` 
 
 ```{r type_category_plots, results='asis', echo=FALSE}
@@ -627,6 +633,10 @@ title_description_table <- rbindlist(rs)
 setnames(title_description_table, 1:3, c("Type", "Title", "Description"))
 
 knitr::kable(title_description_table, caption = "Basic information about titles and descriptions")
+
+if(save == T){ 
+  write.csv(title_description_table, here::here("plots", "csv", "title_description_table.csv"), row.names = F, quote=F)
+}
 ```
 
 ```{r title_description_wordclouds, results='asis', echo=FALSE, message=FALSE}
@@ -863,6 +873,10 @@ rating_table <- rbindlist(rs)
 setnames(rating_table, 1:2, c("Type", "Value"))
 
 knitr::kable(rating_table, caption = "Basic information about reviews")
+
+if(save == T){ 
+  write.csv(rating_table, here::here("plots", "csv", "rating_table.csv"), row.names = F, quote=F)
+}
 ```  
 
 ```{r reviews_plots, results='asis', echo=FALSE}
@@ -972,6 +986,9 @@ setnames(backlink_table, 1:5, c("Type", "ref_domains_dofollow", "total_traffic",
 
 knitr::kable(backlink_table, caption = "Basic information about backlinks")
 
+if(save == T){ 
+  write.csv(backlink_table, here::here("plots", "csv", "backlink_table.csv"), row.names = F, quote=F)
+}
 ```
 
 ```{r ref_domains_dofollow_plots, results='asis', echo=FALSE}
@@ -1035,11 +1052,7 @@ Key takeaways:
   if(save == T) {
     pdfs <- list.files(here::here("plots"), pattern = "*.pdf")
     
-    if(!dir.exists(here::here("plots", "png"))) {
-      dir.create(here::here("plots", "png"))
-    }
     setwd(here::here("plots", "png"))
-
     for(pdf in pdfs) {
       pdf_convert(pdf = here::here("plots", pdf), format = "png", dpi = 720)
     }

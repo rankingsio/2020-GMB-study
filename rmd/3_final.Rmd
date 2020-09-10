@@ -42,72 +42,107 @@ h3 {
   
   
   # Model
-```{r spearman, echo=FALSE, out.width = '90%'}
+```{r spearman, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "spearman_1.png"))
 ```
-```{r feature_importance, echo=FALSE, out.width = '90%'}
+
+```{r feature_importance, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "feature_importance_1.png"))
 ```
-```{r shap_values, echo=FALSE, out.width = '90%'}
+
+```{r shap_values, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "shap_values_1.png"))
 ```
 
 
   # Type category
-```{r type_freq, echo=FALSE, out.width = '90%'}
+```{r type_table, echo=FALSE}
+  type_table <- read.csv(here::here("plots", "csv", "type_table.csv"), stringsAsFactors=F)
+  knitr::kable(type_table, caption = "Basic information about type categories")
+```
+
+```{r type_freq, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "type_freq_1.png"))
 ```
-```{r type_position, echo=FALSE, out.width = '90%'}
+
+```{r type_position, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "type_position_1.png"))
 ```
 
 
   # Title and description
-```{r titles_wordcloud, echo=FALSE, out.width = '90%'}
+```{r title_description_table, echo=FALSE}
+  title_description_table <- read.csv(here::here("plots", "csv", "title_description_table.csv"), stringsAsFactors=F)
+knitr::kable(title_description_table, caption = "Basic information about titles and descriptions")
+```
+
+```{r titles_wordcloud, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "titles_wordcloud_1.png"))
 ```
-```{r descriptions_wordcloud, echo=FALSE, out.width = '90%'}
+
+```{r descriptions_wordcloud, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "descriptions_wordcloud_1.png"))
 ```
-```{r title_description_counts, echo=FALSE, out.width = '90%'}
+
+```{r title_description_counts, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "title_description_counts_1.png"))
 ```
-```{r description_missing, echo=FALSE, out.width = '90%'}
+```{r description_missing, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "description_missing_1.png"))
 ```
-```{r description_keywords, echo=FALSE, out.width = '90%'}
+
+```{r description_keywords, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "description_keywords_1.png"))
 ```
-```{r title_keywords, echo=FALSE, out.width = '90%'}
+
+```{r title_keywords, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "title_keywords_1.png"))
 ```
 
 
   # Reviews
-```{r rating_distribution, echo=FALSE, out.width = '90%'}
+```{r reviews_table, echo=FALSE}
+  rating_table <- read.csv(here::here("plots", "csv", "rating_table.csv"), stringsAsFactors=F)
+  knitr::kable(rating_table, caption = "Basic information about reviews")
+```
+
+```{r rating_distribution, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "rating_distribution_1.png"))
 ```
-```{r review_position, echo=FALSE, out.width = '90%'}
+
+```{r rating_position, echo=FALSE}
+  knitr::include_graphics(here::here("plots", "png", "rating_position_1.png"))
+```
+
+```{r review_position, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "review_position_1.png"))
 ```
 
   
   #Provided updates
-```{r provides_updates, echo=FALSE, out.width = '90%'}
+```{r provides_updates, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "provides_updates_1.png"))
 ```
   
   # Backlink
-```{r ref_domains_dofollow, echo=FALSE, out.width = '90%'}
+```{r backlink_table, echo=FALSE}
+  backlink_table <- read.csv(here::here("plots", "csv", "backlink_table.csv"), stringsAsFactors=F)
+  knitr::kable(backlink_table, caption = "Basic information about backlinks")
+
+```
+```{r ref_domains_dofollow, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "ref_domains_dofollow_1.png"))
 ```
-```{r total_traffic, echo=FALSE, out.width = '90%'}
+
+```{r total_traffic, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "total_traffic_1.png"))
 ```
-```{r ahrefs_rank, echo=FALSE, out.width = '90%'}
+
+```{r ahrefs_rank, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "ahrefs_rank_1.png"))
 ```
-```{r domain_rating, echo=FALSE, out.width = '90%'}
+
+```{r domain_rating, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "domain_rating_1.png"))
 ```
 
