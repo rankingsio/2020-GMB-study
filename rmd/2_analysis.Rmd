@@ -927,31 +927,6 @@ Key takeaways:
 * But then on the other hand, if almost 90% of ratings are five stars and average rating is over 4.5, maybe there just isn't much room for a differentiation.
 
 
-### Provides updates on Google
-
-```{r provides_updates_plot, results='asis', echo=FALSE}
-updates0 <- ggplot(data_vis[`Provides updates` == 0], aes(x=position)) +
-    geom_histogram(color="white", fill="steelblue", bins=20) +
-    ylab("Count") +
-    xlab("Position") + 
-    labs(title = "No") +
-    theme(plot.title = element_text(hjust = 0.5))
-
-updates1 <- ggplot(data_vis[`Provides updates` == 1], aes(x=position)) +
-    geom_histogram(color="white", fill="steelblue", bins=20) +
-    ylab("Count") +
-    xlab("Position") + 
-    labs(title = "Yes") +
-    theme(plot.title = element_text(hjust = 0.5))
-
-provides_updates_plot <- grid.arrange(updates1, updates0, nrow=1, ncol=2, top="Provides updates on Google")
-
-if(save == T){ 
-  ggsave(here::here("plots", "provides_updates.pdf"), provides_updates_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
-}
-``` 
-
 ### Backlink
 
 ```{r ref_domains_dofollow_table, results='asis', echo=FALSE}
@@ -1047,6 +1022,66 @@ Key takeaways:
 
 * Higher ref_domains_dofollow and total_traffic are more common for better positions
 * ahrefs_rank seems to be telling the same story, the only difference is that small number for rank is better, so the shape is inverted
+
+
+
+```{r other_features_table, results='asis', echo=FALSE}
+rs <- list()
+rs[[length(rs)+1]] <- list('Median #photos', 
+                           median(data_all$number_of_photos, na.rm=T))
+rs[[length(rs)+1]] <- list('Max #photos', 
+                           max(data_all$number_of_photos, na.rm=T))
+rs[[length(rs)+1]] <- list('Zero #photos', 
+                           to_percentage(sum(is.na(data_all$number_of_photos)) / nrow(data_all)))
+rs[[length(rs)+1]] <- list('Provides Google updates', 
+                           to_percentage(sum(data_all$provides_updates == "Yes") / nrow(data_all)))
+
+misc_features_table <- rbindlist(rs)
+setnames(misc_features_table, 1:2, c("Type", "Value"))
+
+knitr::kable(misc_features_table, caption = "Basic information about #photos and Google updates")
+
+if(save == T){ 
+  write.csv(misc_features_table, here::here("plots", "csv", "misc_features_table.csv"), row.names = F, quote=F)
+}
+```
+
+### Provided updates and #photos
+
+```{r other_features_plot, results='asis', echo=FALSE}
+
+number_of_photos_plot <- ggplot(data_vis, aes(y=`Relative #photos`, x=as.factor(position))) +
+  geom_boxplot(color="white", fill="steelblue") +
+  ylab("Relative #photos") +
+  xlab("Position") +
+  labs(title = "Relative #photos boxplot") +
+  theme(plot.title = element_text(hjust = 0.5))
+plot(number_of_photos_plot)
+
+updates0 <- ggplot(data_vis[`Provides updates` == 0], aes(x=position)) +
+    geom_histogram(color="white", fill="steelblue", bins=20) +
+    ylab("Count") +
+    xlab("Position") + 
+    labs(title = "No") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+updates1 <- ggplot(data_vis[`Provides updates` == 1], aes(x=position)) +
+    geom_histogram(color="white", fill="steelblue", bins=20) +
+    ylab("Count") +
+    xlab("Position") + 
+    labs(title = "Yes") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+provides_updates_plot <- grid.arrange(updates1, updates0, nrow=1, ncol=2, top="Provides updates on Google")
+
+if(save == T){ 
+  ggsave(here::here("plots", "number_of_photos.pdf"), number_of_photos_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+  ggsave(here::here("plots", "provides_updates.pdf"), provides_updates_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
+}
+``` 
+
 
 ```{r convert_to_pngs, results='asis', echo=FALSE}
   if(save == T) {

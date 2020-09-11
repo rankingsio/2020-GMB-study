@@ -34,14 +34,26 @@ h3 {
 }
 </style>
   
-  # 1. Introduction
+# 1. Introduction
   
   
   
-  # 2. Methodology
+# 2. Methodology
   
+The goal of the statistical modelling in this study is to find answers to three key questions:
+
+1. How accurately can the rankings be predicted given the dependent variables?
+2. What are the most important features for the predictions?
+3. What is the direction of the impact?
+
+The method of choice for the study was gradient boosted decision trees (GBDT). GBDT is a widely used machine learning technique which can be used in many settings from regression or classification to learning to rank type of problems. In a learning to rank problem, there is a ordered list of items and the goal for the model is to calculate a score for each item based on dependent variables such that the original order is retained. 
+
+In process of building the model, data set was split to two folds: train data (containing around 70% of searches) and test data (the rest of the data, about 30%). GBDT model was fitted using training data, predictions were calculated for the test data set, and then finally predictions were compared to real observed rankings. The chosen evaluation metric was Spearman's rank correlation coefficient. Spearman's rank correlation is a scaled measurement of the agreement of two rankings. Perfectly matching rankings would give value of 1, the expected value for random rankings is zero and reverse order would have value of -1.
+
+The next step is to understand why the model makes particular predictions; what are the most important dependent variables and how their values effect the predictions? For this purpose SHapley Additive exPlanations (SHAP) values were calculated. In SHAP each prediction is presented as a sum of each dependent variable's responsibility. Then the overall impact of any particular variable can be measured as a average of absolute values over the whole data set.
+
   
-  # Model
+# Model results
 ```{r spearman, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "spearman_1.png"))
 ```
@@ -54,8 +66,47 @@ h3 {
   knitr::include_graphics(here::here("plots", "png", "shap_values_1.png"))
 ```
 
+* The first plot is showing feature importance, that is, each feature's average contribution to model's predictions. 
+  
+* Second plot shows the direction of the impact given feature's value. 
 
-  # Type category
+* Overall, the most interesting features for us to look at are a) high in the first plot and b) show clear pattern in the second plot. 
+
+* E.g. if we look at the first row and the feature named "Has same city listed as in search query", we can see kind of polarized distribution of SHAP values around zero. Yellow points correspond to high feature values (in this case, "No") and here their impact to all predictions in the data set is negative and therefore making model belief that predicted positions should be worse for them. Where as purple points correspond to high feature values ("Yes") and have positive impact for predicted positions.
+
+* Similarly, "Type category is personal injury" and "Type category is personal injury" are similar too the "Has same city listed as in search query". Ie. if they have value "Yes" they will impact positively to predicted positions.
+
+
+
+# A closer look at the features
+
+The depended variables used in this study can be roughly organized into five main groups, these are listed below and also showing a few important variables suggested by SHAP values.
+
+* Location
+  + Has same city listed as in search query
+  + Relative place population
+
+* Popularity
+  + Relative #photos 
+  + Relative #questions
+
+* Type category
+  + Type category is personal injury attorney/lawyer
+
+* Keywords and title/description
+  + Has "lawyer or attorney"/city in title
+  + #Characters in description
+
+* Reviews
+  + Relative #reviews
+  + Review rating
+
+In terms of SEO, the first two categories are not much of a interest as they are something difficult or even impossible to change or adjust, but the last three are more interesting and worth further investigation. 
+
+
+
+# Type category
+
 ```{r type_table, echo=FALSE}
   type_table <- read.csv(here::here("plots", "csv", "type_table.csv"), stringsAsFactors=F)
   knitr::kable(type_table, caption = "Basic information about type categories")
@@ -69,8 +120,15 @@ h3 {
   knitr::include_graphics(here::here("plots", "png", "type_position_1.png"))
 ```
 
+Key takeaways:
 
-  # Title and description
+* Distributions for more general categories (Lawyer, Law firm, Legal services) are tilted towards lower positions in the results compared to best matching category (Personal injury attorney).
+* Same thing occurs with specific, but less matching categories (Criminal justice attorney, Family law attorney)
+* However, some of these categories (Law firm, Criminal justice attorney, Legal services) have relatively large counts for top positions. One possible explanation is that these groups represent larger companies with high revenues and therefore would be ranked higher. 
+
+
+
+# Title and description
 ```{r title_description_table, echo=FALSE}
   title_description_table <- read.csv(here::here("plots", "csv", "title_description_table.csv"), stringsAsFactors=F)
 knitr::kable(title_description_table, caption = "Basic information about titles and descriptions")
@@ -99,8 +157,17 @@ knitr::kable(title_description_table, caption = "Basic information about titles 
   knitr::include_graphics(here::here("plots", "png", "title_keywords_1.png"))
 ```
 
+Key takeaways:
 
-  # Reviews
+* In general, length of titles/descriptions don't correlate much with positions
+* The only exception is businesses with missing description; they tend to have clearly lower positions in results
+* In all cases with different keywords, search results containing keyword in title/description have lower positions on average than entries without
+* The effect is more noticeable for titles than descriptions
+* Also, more specific words (both city name and "car accident"/"personal injury") have higher effect then lawyer/attorney
+
+
+
+# Reviews
 ```{r reviews_table, echo=FALSE}
   rating_table <- read.csv(here::here("plots", "csv", "rating_table.csv"), stringsAsFactors=F)
   knitr::kable(rating_table, caption = "Basic information about reviews")
@@ -118,17 +185,19 @@ knitr::kable(title_description_table, caption = "Basic information about titles 
   knitr::include_graphics(here::here("plots", "png", "review_position_1.png"))
 ```
 
+Key takeaways:
+
+* Businesses with highest number of reviews tend to have the lowest positions (top left corner)
+* In contrast, low number of reviews correlates with higher position (bottom right)
+* Perhaps surprisingly, ratings themself don't seem to practically any effect on page's position, only activity matters. 
+* But then on the other hand, if almost 90% of ratings are five stars and average rating is over 4.5, maybe there just isn't much room for a differentiation.
+
+
   
-  #Provided updates
-```{r provides_updates, echo=FALSE}
-  knitr::include_graphics(here::here("plots", "png", "provides_updates_1.png"))
-```
-  
-  # Backlink
+# Backlink
 ```{r backlink_table, echo=FALSE}
   backlink_table <- read.csv(here::here("plots", "csv", "backlink_table.csv"), stringsAsFactors=F)
   knitr::kable(backlink_table, caption = "Basic information about backlinks")
-
 ```
 ```{r ref_domains_dofollow, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "ref_domains_dofollow_1.png"))
@@ -146,4 +215,22 @@ knitr::kable(title_description_table, caption = "Basic information about titles 
   knitr::include_graphics(here::here("plots", "png", "domain_rating_1.png"))
 ```
 
-    
+Key takeaways:
+
+* Higher ref_domains_dofollow, total_traffic and domain_rating are more common for better positions
+* ahrefs_rank seems to be telling the same story, the only difference is that small number for rank is better, so the shape is inverted
+
+
+# Provided updates and number of photos
+
+```{r other_features_table, echo=FALSE}
+  misc_features_table <- read.csv(here::here("plots", "csv", "misc_features_table.csv"), stringsAsFactors=F)
+  knitr::kable(misc_features_table, caption = "Basic information about #photos and Google updates")
+```
+
+```{r provides_updates, echo=FALSE}
+  knitr::include_graphics(here::here("plots", "png", "provides_updates_1.png"))
+```
+```{r number_of_photos, echo=FALSE}
+  knitr::include_graphics(here::here("plots", "png", "number_of_photos_1.png"))
+```    
