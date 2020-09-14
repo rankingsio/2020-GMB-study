@@ -1,6 +1,18 @@
 ---
-title: "Google My Business Ranking Study for Personal Injury Lawyers"
-output: html_document
+title: "Google My Business Ranking Study"
+author: 
+- "Lead: Chris Dreyer (rankings.io)"
+- "Support: Frontpagedata.com"
+date: "Last updated on `r Sys.Date()`"
+output: 
+  html_document:
+    theme: paper
+    highlight: kate
+    code_folding: hide
+    toc_depth: 3
+    toc_float: true
+editor_options:
+  chunk_output_type: console
 ---
   
   <style>
@@ -22,7 +34,7 @@ h1 {
 
 h1.title {
   font-size: 30px;
-  color: #00d188;
+  color: #D21C5C;
 }
 
 h2 {
@@ -34,29 +46,61 @@ h3 {
 }
 </style>
   
-# 1. Introduction
+# 1 Introduction
+
+Search Results containing a local pack often get the majority of clicks. Knowing which local rankings factors to optimize for the biggest bang is crucial for SEOs and business owners alike.
+
+Smaller data studies as well as opinion-based surveys have sought to uncover the relevance and importance of local ranking factors, namely https://www.localseoguide.com/guides/local-seo-ranking-factors/, https://moz.com/local-search-ranking-factors,  https://www.brightlocal.com/research/how-car-dealerships-are-speeding-ahead-with-google-my-business/
+
+However, in our view, most of the studies are outdated and contain severe statistical and methodological flaws.
+
+This study intends to fill the gap and shed some insights on which local ranking factors are the most imnportant ones in the personal injury niche. 
   
   
-  
-# 2. Methodology
-  
-The goal of the statistical modelling in this study is to find answers to three key questions:
+# 2 Methodology
+
+*Step 1 Keyword Selection*: We defined for 4 unique keyword combinations in 426 US cities with above 100k pop., giving in total 1659 search results. The format of the search queries was the following:
+
+(city) + " car accident lawyer"
+(city) + " personal injury lawyer"
+(city) + " car accident attorney"
+(city) + " personal injury attorney"
+
+*Step 2 Data Mining*:
+
+*Step 3 Data Enrichment*: 
+
+*Step 4 Data Analysis*: The goal of the statistical modelling in this study is to find answers to three key questions:
 
 1. How accurately can the rankings be predicted given the dependent variables?
 2. What are the most important features for the predictions?
 3. What is the direction of the impact?
 
-The method of choice for the study was gradient boosted decision trees (GBDT). GBDT is a widely used machine learning technique which can be used in many settings from regression or classification to learning to rank type of problems. In a learning to rank problem, there is a ordered list of items and the goal for the model is to calculate a score for each item based on dependent variables such that the original order is retained. 
+The statistical method of choice for this study was the gradient boosted decision trees (GBDT) model. The GBDT is a widely used machine learning technique which can be used in many settings. These can range from regression and classification to learning to rank type of problems. In a learning to rank problem, there is a ordered list of items and the goal for the model is to calculate a score for each item based on the dependent variables such that the original order is retained. 
 
 In process of building the model, data set was split to two folds: train data (containing around 70% of searches) and test data (the rest of the data, about 30%). GBDT model was fitted using training data, predictions were calculated for the test data set, and then finally predictions were compared to real observed rankings. The chosen evaluation metric was Spearman's rank correlation coefficient. Spearman's rank correlation is a scaled measurement of the agreement of two rankings. Perfectly matching rankings would give value of 1, the expected value for random rankings is zero and reverse order would have value of -1.
 
 The next step is to understand why the model makes particular predictions; what are the most important dependent variables and how their values effect the predictions? For this purpose SHapley Additive exPlanations (SHAP) values were calculated. In SHAP each prediction is presented as a sum of each dependent variable's responsibility. Then the overall impact of any particular variable can be measured as a average of absolute values over the whole data set.
 
+#### Note on the the variables
+
+All variables with the prefix “relative” are calculated as rank (values) / length (values) for values inside each search group. For example, a search compromised of “Milwaukee car accident lawyer”, the entry with the highest number of photos would get the relative # of photos value equal to 1. The entry with the lowest value would get a 0, and the remnaining values would be something in between. The motivation behind this transformation is to make attribute values more comparable between search results i.e. trying to minimize effect of the size of the population of the city. 
+
   
-# Model results
-```{r spearman, echo=FALSE}
-  knitr::include_graphics(here::here("plots", "png", "spearman_1.png"))
-```
+# 3 Research Findings 
+
+In this section, we analyse how different ranking factors relate with higher organic positions in the Google My Business Search  Results.
+
+We look first at the importance of indidividual ranking factors. Then, we provide a deep dive into single variables that we´ve identified as particulary important. 
+
+
+## 3.1 The importance of individial ranking factors
+
+The first plot is showing feature importance. That is each feature's average contribution to model's predictions. The second plot shows the direction of the impact given feature's value.  Overall, the most interesting features for us to look at are a) high in the first plot and b) show clear pattern in the second plot. 
+
+For example. if we look at the first row and the feature named "Has same city listed as in search query", we can see a polarized distribution of SHAP values around zero. Yellow points correspond to high feature values (in this case, "No") and here their impact to all predictions in the data set is negative and therefore making model belief that predicted positions should be worse for them. Where as purple points correspond to high feature values ("Yes") and have positive impact for predicted positions.
+
+Similarly, "Type category is personal injury" and "Type category is personal injury" are similar too the "Has same city listed as in search query". Ie. if they have value "Yes" they will impact positively to predicted positions.
 
 ```{r feature_importance, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "feature_importance_1.png"))
@@ -66,16 +110,15 @@ The next step is to understand why the model makes particular predictions; what 
   knitr::include_graphics(here::here("plots", "png", "shap_values_1.png"))
 ```
 
-* The first plot is showing feature importance, that is, each feature's average contribution to model's predictions. 
-  
-* Second plot shows the direction of the impact given feature's value. 
+#### Accuracy
 
-* Overall, the most interesting features for us to look at are a) high in the first plot and b) show clear pattern in the second plot. 
 
-* E.g. if we look at the first row and the feature named "Has same city listed as in search query", we can see kind of polarized distribution of SHAP values around zero. Yellow points correspond to high feature values (in this case, "No") and here their impact to all predictions in the data set is negative and therefore making model belief that predicted positions should be worse for them. Where as purple points correspond to high feature values ("Yes") and have positive impact for predicted positions.
+In the plot below, showing the distribution of correlations calculated separately for each search.
+Overall, the mean correlation is about 0.6, showing fairly good fit between observations and predictions.
 
-* Similarly, "Type category is personal injury" and "Type category is personal injury" are similar too the "Has same city listed as in search query". Ie. if they have value "Yes" they will impact positively to predicted positions.
-
+```{r spearman, echo=FALSE}
+  knitr::include_graphics(here::here("plots", "png", "spearman_1.png"))
+```
 
 
 # A closer look at the features
@@ -87,7 +130,7 @@ The depended variables used in this study can be roughly organized into five mai
   + Relative place population
 
 * Popularity
-  + Relative #photos 
+  + Relative # photos 
   + Relative #questions
 
 * Type category
