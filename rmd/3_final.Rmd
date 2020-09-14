@@ -54,7 +54,7 @@ Smaller data studies as well as opinion-based surveys have sought to uncover the
 
 However, in our view, most of the studies are outdated and contain severe statistical and methodological flaws.
 
-This study intends to fill the gap and shed some insights on which local ranking factors are the most imnportant ones in the personal injury niche. 
+This study intends to fill the gap and shed some insights on which local ranking factors are the most important ones in the personal injury niche. 
   
   
 # 2 Methodology
@@ -67,6 +67,11 @@ This study intends to fill the gap and shed some insights on which local ranking
 (city) + " personal injury attorney"
 
 *Step 2 Data Mining*:
+
+```{r data_table, echo=FALSE}
+  basic_info_table <- read.csv(here::here("plots", "csv", "basic_info_table.csv"), stringsAsFactors=F)
+  knitr::kable(basic_info_table, caption = "Basic information about the data set")
+```
 
 *Step 3 Data Enrichment*: 
 
@@ -84,7 +89,7 @@ The next step is to understand why the model makes particular predictions; what 
 
 #### Note on the the variables
 
-All variables with the prefix “relative” are calculated as rank (values) / length (values) for values inside each search group. For example, a search compromised of “Milwaukee car accident lawyer”, the entry with the highest number of photos would get the relative # of photos value equal to 1. The entry with the lowest value would get a 0, and the remnaining values would be something in between. The motivation behind this transformation is to make attribute values more comparable between search results i.e. trying to minimize effect of the size of the population of the city. 
+All variables with the prefix “relative” are calculated as rank (values) / length (values) for values inside each search group. For example, a search compromised of “Milwaukee car accident lawyer”, the entry with the highest number of photos would get the relative # of photos value equal to 1. The entry with the lowest value would get a 0, and the remaining values would be something in between. The motivation behind this transformation is to make attribute values more comparable between search results i.e. trying to minimize effect of the size of the population of the city. 
 
   
 # 3 Research Findings 
@@ -130,8 +135,8 @@ The depended variables used in this study can be roughly organized into five mai
   + Relative place population
 
 * Popularity
-  + Relative # photos 
-  + Relative #questions
+  + Relative # of photos 
+  + Relative # of questions
 
 * Type category
   + Type category is personal injury attorney/lawyer
@@ -141,7 +146,7 @@ The depended variables used in this study can be roughly organized into five mai
   + #Characters in description
 
 * Reviews
-  + Relative #reviews
+  + Relative # of reviews
   + Review rating
 
 In terms of SEO, the first two categories are not much of a interest as they are something difficult or even impossible to change or adjust, but the last three are more interesting and worth further investigation. 
@@ -277,3 +282,8 @@ Key takeaways:
 ```{r number_of_photos, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "number_of_photos_1.png"))
 ```    
+Key takeaways:
+
+* Businesses who provide Google updates more often tend to have better positions.
+* Similarly, also higher number of photos is correlated with better positions.
+* So once again, activity seems to be the key

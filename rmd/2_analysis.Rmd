@@ -42,14 +42,15 @@ Google My Business search results were collected for 4 unique keyword combinatio
 * (city) + " car accident attorney"
 * (city) + " personal injury attorney"
 
+
 #### Independent variables
 All variables with prefix "Relative" are calculated as rank(values) / length(values) for values inside each search group. So for example, search with keyword "Milwaukee car accident lawyer" the entry with highest number of photos would get Relative number of photos value equal to 1, entry with lowest value would get 0, and the rest of the values would be something in between. The motivation behind this transformation is to make attribute values more comparable between searches, i.e. trying to minimize effect of the size of the population of the city etc.
 
 * Attributes from basic.csv
   + Review rating
-  + Relative #reviews
-  + Relative #photos
-  + Relative #questions
+  + Relative # of reviews
+  + Relative # of photos
+  + Relative # of questions
   + Provides updates
   + Is business claimed
   + Has street address
@@ -88,7 +89,7 @@ All variables with prefix "Relative" are calculated as rank(values) / length(val
   + Ratio of 2s in ratings
   + Ratio of 1s in ratings
   + Review response ratio
-  + Relative #review likes
+  + Relative # of review likes
   
 * Attributes from q_a.csv
   + Question answer ratio
@@ -146,13 +147,13 @@ data_all <- data_all[google_ad == "No"]
 
 #calculate search group sizes and remove a few searches without enough result
 data_all[, group_size := .N, by=keyword_strings]
-data_all <- data_all[group_size >= 10]
+data_all <- data_all[group_size >= 1]
 
 #relative variables, ie. normalize by dividing by median value of the whole search group
 data_all[, 'Review rating' := ifelse(is.na(rating) | rating < 1 | rating > 5, NA_real_, rating), by=keyword_strings]
-data_all[, 'Relative #reviews' := relative_value(reviews, T), by=keyword_strings]
-data_all[, 'Relative #photos' := relative_value(number_of_photos, T), by=keyword_strings]
-data_all[, 'Relative #questions' := relative_value(total_questions, T), by=keyword_strings]
+data_all[, 'Relative # of reviews' := relative_value(reviews, T), by=keyword_strings]
+data_all[, 'Relative # of photos' := relative_value(number_of_photos, T), by=keyword_strings]
+data_all[, 'Relative # of questions' := relative_value(total_questions, T), by=keyword_strings]
 
 #transform Yes/No to 1/0
 #data_all[, 'Has GoogleAd' := as.integer(google_ad == "Yes")]
@@ -221,7 +222,7 @@ data_all <- merge(data_all, by="place_id", all.x=T, all.y=F,
         'Time since previous review' = min(time_since_review)
       ), by = "place_id"]
 )
-data_all[, 'Relative #review likes' := relative_value(review_median_of_likes, T), by="keyword_strings"]
+data_all[, 'Relative # of review likes' := relative_value(review_median_of_likes, T), by="keyword_strings"]
 
 #features from q_a
 data_all <- merge(data_all, by="place_id", all.x=T, all.y=F,
@@ -298,9 +299,9 @@ test_ids <- setdiff(ids, train_ids)
 
 feature_cols <- c(
 'Review rating',
-'Relative #reviews',
-'Relative #photos',
-'Relative #questions',
+'Relative # of reviews',
+'Relative # of photos',
+'Relative # of questions',
 
 #'Has GoogleAd',
 'Provides updates',
@@ -345,7 +346,7 @@ feature_cols <- c(
 'Review response ratio',
 'Time since previous review',
 
-'Relative #review likes',
+'Relative # of review likes',
 
 'Question answer ratio',
 
@@ -409,6 +410,11 @@ shap_importance <- data.frame(feature = names(shap_values$mean_shap_score),
 
 shap_values_test <- shap.values(model, X_test)
 shap_scores_test <- shap_values_test$shap_score
+
+#spearman correlations
+spearman_data <- data_all[keyword_strings %in% test_ids,]
+spearman_data[, pred := pred]
+spearman_data <- spearman_data[, list(correlation=cor(target, pred, method="spearman")), by="keyword_strings"]
 ```
 
 ## Results
@@ -419,11 +425,8 @@ shap_scores_test <- shap_values_test$shap_score
 * Overall mean correlation is about 0.6, showing fairly good fit between observations and predictions
 
 ```{r accuracy, echo = FALSE}
-dc <- data_all[keyword_strings %in% test_ids,]
-dc[, pred := pred]
-dc <- dc[, list(correlation=cor(target, pred, method="spearman")), by="keyword_strings"]
-mean_correlation <- format(round(mean(dc$correlation), 2), nsmall = 2)
-spearman_plot <- ggplot(dc, aes(x = correlation)) + 
+mean_correlation <- format(round(mean(spearman_data$correlation), 2), nsmall = 2)
+spearman_plot <- ggplot(spearman_data, aes(x = correlation)) + 
   geom_histogram(fill="steelblue", color="white", binwidth=0.05) +
   xlab("Correlations for search rankings") +
   ylab("Count") + 
@@ -483,8 +486,8 @@ The depended variables used in this study can be roughly organized into five mai
   + Relative place population
 
 * Popularity
-  + Relative #photos 
-  + Relative #questions
+  + Relative # of photos 
+  + Relative # of questions
 
 * Type category
   + Type category is personal injury attorney/lawyer
@@ -494,7 +497,7 @@ The depended variables used in this study can be roughly organized into five mai
   + #Characters in description
 
 * Reviews
-  + Relative #reviews
+  + Relative # of reviews
   + Review rating
 
 In terms of SEO, the first two categories are not much of a interest as they are something difficult or even impossible to change or adjust, but the last three are more interesting and worth further investigation. 
@@ -890,11 +893,11 @@ rating_distribution_plot <- ggplot(all_reviews, aes(x=all_reviews_rating)) +
   coord_flip()
 plot(rating_distribution_plot)
 
-review_position_plot <- ggplot(data_vis, aes(y=`Relative #reviews`, x=as.factor(position))) +
+review_position_plot <- ggplot(data_vis, aes(y=`Relative # of reviews`, x=as.factor(position))) +
   geom_boxplot(color="white", fill="steelblue") +
-  ylab("Relative #reviews") +
+  ylab("Relative # of reviews") +
   xlab("Position") +
-  labs(title = "Relative #reviews boxplot") +
+  labs(title = "Relative # of reviews boxplot") +
   theme(plot.title = element_text(hjust = 0.5))
 plot(review_position_plot)
 
@@ -1050,11 +1053,11 @@ if(save == T){
 
 ```{r other_features_plot, results='asis', echo=FALSE}
 
-number_of_photos_plot <- ggplot(data_vis, aes(y=`Relative #photos`, x=as.factor(position))) +
+number_of_photos_plot <- ggplot(data_vis, aes(y=`Relative # of photos`, x=as.factor(position))) +
   geom_boxplot(color="white", fill="steelblue") +
-  ylab("Relative #photos") +
+  ylab("Relative # of photos") +
   xlab("Position") +
-  labs(title = "Relative #photos boxplot") +
+  labs(title = "Relative # of photos boxplot") +
   theme(plot.title = element_text(hjust = 0.5))
 plot(number_of_photos_plot)
 
@@ -1081,6 +1084,45 @@ if(save == T){
          width = 12.5, height = 8, device = cairo_pdf) 
 }
 ``` 
+
+Key takeaways:
+
+* Businesses who provide Google updates more often tend to have better positions.
+* Similarly, also higher number of photos is correlated with better positions.
+* So once again, activity seems to be the key
+
+
+
+```{r data_table, include=FALSE}
+
+rs <- list()
+rs[[length(rs)+1]] <- list('#Cities', 
+                           length(unique(data_all$city)))
+rs[[length(rs)+1]] <- list('#Keywords', 
+                           length(unique(data_all$keyword)))
+rs[[length(rs)+1]] <- list('Total # of searches', 
+                           length(unique(data_all$keyword_strings)))
+rs[[length(rs)+1]] <- list('#Unique place IDs', 
+                           length(unique(data_all$place_id)))
+rs[[length(rs)+1]] <- list('Searches with less than 10 results', 
+                           to_percentage(sum(data_all$group_size<10) / nrow(data_all)))
+rs[[length(rs)+1]] <- list('Searches with 10 to 15 results', 
+                           to_percentage(sum(data_all$group_size>=10 &data_all$group_size<=15) / nrow(data_all)))
+rs[[length(rs)+1]] <- list('Searches with 16 to 19 results', 
+                           to_percentage(sum(data_all$group_size>=16 &data_all$group_size<=19) / nrow(data_all)))
+rs[[length(rs)+1]] <- list('Searches with a full first-page', 
+                           to_percentage(sum(data_all$group_size>=20) / nrow(data_all)))
+
+basic_info_table <- rbindlist(rs)
+setnames(basic_info_table, 1:2, c("Type", "Value"))
+
+knitr::kable(basic_info_table, caption = "Basic information about the data set")
+
+if(save == T){ 
+  write.csv(basic_info_table, here::here("plots", "csv", "basic_info_table.csv"), row.names = F, quote=F)
+}
+
+```
 
 
 ```{r convert_to_pngs, results='asis', echo=FALSE}
