@@ -50,75 +50,78 @@ h3 {
 
 Search Results containing a local pack often get the majority of clicks. Knowing which local rankings factors to optimize for the biggest bang is crucial for SEOs and business owners alike.
 
-Smaller data studies as well as opinion-based surveys have sought to uncover the relevance and importance of local ranking factors, namely https://www.localseoguide.com/guides/local-seo-ranking-factors/, https://moz.com/local-search-ranking-factors,  https://www.brightlocal.com/research/how-car-dealerships-are-speeding-ahead-with-google-my-business/
+Smaller data studies as well as opinion-based surveys have sought to uncover the relevance and importance of local ranking factors, including but not limited to the [localseoguide.com](https://www.localseoguide.com/guides/local-seo-ranking-factors/), [moz.com](https://moz.com/local-search-ranking-factors) and [brigtlocal.com](https://www.brightlocal.com/research/how-car-dealerships-are-speeding-ahead-with-google-my-business/).
 
 However, in our view, most of the studies are outdated and contain severe statistical and methodological flaws.
 
-This study intends to fill the gap and shed some insights on which local ranking factors are the most important ones in the personal injury niche. 
+This study intends to fill the gap and shed some insights in the personal injury niche on which local ranking factors are the most relevant ones. 
   
   
 # 2 Methodology
 
-*Step 1 Keyword Selection*: We defined for 4 unique keyword combinations in 426 US cities with above 100k pop., giving in total 1659 search results. The format of the search queries was the following:
+##### Step 1 Keyword Selection
 
-(city) + " car accident lawyer"
-(city) + " personal injury lawyer"
-(city) + " car accident attorney"
-(city) + " personal injury attorney"
+We defined for 4 unique keyword combinations in 426 US cities (> 100.000 inihabitants). The format of the search queries was the following:
 
-*Step 2 Data Mining*:
+* (city) + "car accident lawyer"
+* (city) + "personal injury lawyer"
+* (city) + "car accident attorney"
+* (city) + "personal injury attorney"
+
+##### Step 2 Data Mining
+
+To gather the base data for the study, we created a script to collect data points from the Google My Business Maps Listing. The relevant entries were scraped from the Google Search page (https://www.google.com/) by entering the above keyword combinations. A basic data overview can be found below. 
+
+It is important to note that we did not collect at data on proximity factors, given the inherent and practical difficulties in obtaning such data.   
 
 ```{r data_table, echo=FALSE}
   basic_info_table <- read.csv(here::here("plots", "csv", "basic_info_table.csv"), stringsAsFactors=F)
   knitr::kable(basic_info_table, caption = "Basic information about the data set")
 ```
 
-*Step 3 Data Enrichment*: 
+##### Step 3 Data Enrichment
 
-*Step 4 Data Analysis*: The goal of the statistical modelling in this study is to find answers to three key questions:
+As a next step, we enriched the listed website domains with SEO data frm the third-data provider Ahrefs. To do so, we cut down the URL website domains to their root and uploaded them onto the Ahrefs bulk analysis tool. All data sets were then merged into one. 
 
-1. How accurately can the rankings be predicted given the dependent variables?
-2. What are the most important features for the predictions?
-3. What is the direction of the impact?
 
-The statistical method of choice for this study was the gradient boosted decision trees (GBDT) model. The GBDT is a widely used machine learning technique which can be used in many settings. These can range from regression and classification to learning to rank type of problems. In a learning to rank problem, there is a ordered list of items and the goal for the model is to calculate a score for each item based on the dependent variables such that the original order is retained. 
+##### Step 4 Data Analysis
 
-In process of building the model, data set was split to two folds: train data (containing around 70% of searches) and test data (the rest of the data, about 30%). GBDT model was fitted using training data, predictions were calculated for the test data set, and then finally predictions were compared to real observed rankings. The chosen evaluation metric was Spearman's rank correlation coefficient. Spearman's rank correlation is a scaled measurement of the agreement of two rankings. Perfectly matching rankings would give value of 1, the expected value for random rankings is zero and reverse order would have value of -1.
+We applied a state of the art machine learning model (first published in 2017) to determine the importance of GMB factors on rankings. More information on the model can be found in the Technical Annex. Then, we provided a deep dive into single variables that the model identified as particulary important to impact GMB positions. 
 
-The next step is to understand why the model makes particular predictions; what are the most important dependent variables and how their values effect the predictions? For this purpose SHapley Additive exPlanations (SHAP) values were calculated. In SHAP each prediction is presented as a sum of each dependent variable's responsibility. Then the overall impact of any particular variable can be measured as a average of absolute values over the whole data set.
 
-#### Note on the the variables
-
-All variables with the prefix “relative” are calculated as rank (values) / length (values) for values inside each search group. For example, a search compromised of “Milwaukee car accident lawyer”, the entry with the highest number of photos would get the relative # of photos value equal to 1. The entry with the lowest value would get a 0, and the remaining values would be something in between. The motivation behind this transformation is to make attribute values more comparable between search results i.e. trying to minimize effect of the size of the population of the city. 
-
-  
 # 3 Research Findings 
-
-In this section, we analyse how different ranking factors relate with higher organic positions in the Google My Business Search  Results.
-
-We look first at the importance of indidividual ranking factors. Then, we provide a deep dive into single variables that we´ve identified as particulary important. 
 
 
 ## 3.1 The importance of individial ranking factors
 
-The first plot is showing feature importance. That is each feature's average contribution to model's predictions. The second plot shows the direction of the impact given feature's value.  Overall, the most interesting features for us to look at are a) high in the first plot and b) show clear pattern in the second plot. 
+The plot below indicates what factors are particulay important in impacting GMB rankings (a more technical explanation can be found below). We can conclude that having the same GMB city listed as in the search query has the largest effect on the ranking position, followed by the "type category is personal injury lawyer", # of reviews and the # of photos. Adding the string "lawyer or "attorney" to the title can also positively impact positions, according to our analysis. 
 
-For example. if we look at the first row and the feature named "Has same city listed as in search query", we can see a polarized distribution of SHAP values around zero. Yellow points correspond to high feature values (in this case, "No") and here their impact to all predictions in the data set is negative and therefore making model belief that predicted positions should be worse for them. Where as purple points correspond to high feature values ("Yes") and have positive impact for predicted positions.
+GMB details such as adding street address, website domain, and phone number do not seem to be relevant. The same is true for social signals. 
 
-Similarly, "Type category is personal injury" and "Type category is personal injury" are similar too the "Has same city listed as in search query". Ie. if they have value "Yes" they will impact positively to predicted positions.
 
 ```{r feature_importance, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "feature_importance_1.png"))
 ```
 
+
+##### Technical explanation 
+
+The shap feature importance plot (see above) indicates the importance of each variable. That is each factor's average contribution to the model's predictions. The higher a variable is listed on the plot, the higher the factor´s contribution is to the GMB rankings.
+
+On the other hand, the plot below shows the direction of the impact given each factor's value.
+
+For instance, if we look at the first row and the feature named "Has same city listed as in search query", we can see a polarized distribution of SHAP values around zero. Yellow points correspond to high feature values (in this case, "No"). That means that their impact to all predictions in the data set is negative. The purple points correspond to high feature values ("Yes") and have a positive impact on the predicted positions.
+
+To take another example, the "Type category is personal injury" variable behaves similiarly to the "Has same city listed as in search query" in that sense that they have higher feature values i.e. they will impact positively the predicted positions.
+
+
 ```{r shap_values, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "shap_values_1.png"))
 ```
 
-#### Accuracy
+##### Accuracy
 
-
-In the plot below, showing the distribution of correlations calculated separately for each search.
+The plot below shows the distribution of correlations calculated separately for each Google search.
 Overall, the mean correlation is about 0.6, showing fairly good fit between observations and predictions.
 
 ```{r spearman, echo=FALSE}
@@ -126,34 +129,33 @@ Overall, the mean correlation is about 0.6, showing fairly good fit between obse
 ```
 
 
-# A closer look at the features
+## 3.2 A closer look at individual ranking factors
 
-The depended variables used in this study can be roughly organized into five main groups, these are listed below and also showing a few important variables suggested by SHAP values.
-
-* Location
-  + Has same city listed as in search query
-  + Relative place population
-
-* Popularity
-  + Relative # of photos 
-  + Relative # of questions
+The depended variables used in this study can be roughly organized into five main groups. These are listed below and also showing a few important variables suggested by the model results. 
 
 * Type category
   + Type category is personal injury attorney/lawyer
 
 * Keywords and title/description
   + Has "lawyer or attorney"/city in title
-  + #Characters in description
-
+  + Number of characters in description
+  + Has same city listed as in search query
+  
 * Reviews
-  + Relative # of reviews
-  + Review rating
+  + Number of reviews
+  + Review ratings
+  
+* SEO
+  + Number of referring domains (dofollow)
+  + Ahrefs rank
+  + total traffic 
+  + domain rating
 
-In terms of SEO, the first two categories are not much of a interest as they are something difficult or even impossible to change or adjust, but the last three are more interesting and worth further investigation. 
+* Activity
+  + Number of photos 
+  + Provides updates on Google
 
-
-
-# Type category
+### 3.2.1 Type category
 
 ```{r type_table, echo=FALSE}
   type_table <- read.csv(here::here("plots", "csv", "type_table.csv"), stringsAsFactors=F)
@@ -170,13 +172,13 @@ In terms of SEO, the first two categories are not much of a interest as they are
 
 Key takeaways:
 
-* Distributions for more general categories (Lawyer, Law firm, Legal services) are tilted towards lower positions in the results compared to best matching category (Personal injury attorney).
-* Same thing occurs with specific, but less matching categories (Criminal justice attorney, Family law attorney)
-* However, some of these categories (Law firm, Criminal justice attorney, Legal services) have relatively large counts for top positions. One possible explanation is that these groups represent larger companies with high revenues and therefore would be ranked higher. 
+* Distributions for more general categories ("Lawyer", "Law firm", "Legal services") are tilted towards lower positions in the search results compared to the best matching category ("Personal injury attorney").
+* Same trend occurs with specific, but less matching categories ("Criminal justice attorney", "Family law attorney")
+* However, some of these categories ("Law firm", "Criminal justice attorney", "Legal services") have relatively large counts for top positions. 
 
 
 
-# Title and description
+### 3.2.2 Title and description
 ```{r title_description_table, echo=FALSE}
   title_description_table <- read.csv(here::here("plots", "csv", "title_description_table.csv"), stringsAsFactors=F)
 knitr::kable(title_description_table, caption = "Basic information about titles and descriptions")
@@ -207,15 +209,15 @@ knitr::kable(title_description_table, caption = "Basic information about titles 
 
 Key takeaways:
 
-* In general, length of titles/descriptions don't correlate much with positions
-* The only exception is businesses with missing description; they tend to have clearly lower positions in results
-* In all cases with different keywords, search results containing keyword in title/description have lower positions on average than entries without
-* The effect is more noticeable for titles than descriptions
-* Also, more specific words (both city name and "car accident"/"personal injury") have higher effect then lawyer/attorney
+* In general, length of titles/descriptions doesn't correlate with positions. 
+* The only notable exception are businesses with missing descriptions; they tend to have lower positions in the search results. 
+* GMB listings containing various keyword combinations in the title/description exhibit, on average, higher positions than entries without.
+* The effect is more noticeable for titles than descriptions. 
+* In addition, more specific words (both city names and "car accident"/"personal injury") have higher effects then keywords such as "lawyer" or "attorney".  
 
 
 
-# Reviews
+### 3.2.3 Reviews
 ```{r reviews_table, echo=FALSE}
   rating_table <- read.csv(here::here("plots", "csv", "rating_table.csv"), stringsAsFactors=F)
   knitr::kable(rating_table, caption = "Basic information about reviews")
@@ -235,14 +237,11 @@ Key takeaways:
 
 Key takeaways:
 
-* Businesses with highest number of reviews tend to have the lowest positions (top left corner)
-* In contrast, low number of reviews correlates with higher position (bottom right)
-* Perhaps surprisingly, ratings themself don't seem to practically any effect on page's position, only activity matters. 
-* But then on the other hand, if almost 90% of ratings are five stars and average rating is over 4.5, maybe there just isn't much room for a differentiation.
+* GMB listings with higher number of reviews tend to have  higher positions (top left corner).
+* In contrast, low number of reviews correlate with lower positions (bottom right).
+* Perhaps surprisingly, review ratings themself don't seem to show any effect on GMB lsiting´s position. It seems that only review activity matters. However, if almost 90% of ratings are five star ratings with an average rating of over 4.5, there perhaps isn't much room for a differentiation.
 
-
-  
-# Backlink
+### 3.2.4 SEO
 ```{r backlink_table, echo=FALSE}
   backlink_table <- read.csv(here::here("plots", "csv", "backlink_table.csv"), stringsAsFactors=F)
   knitr::kable(backlink_table, caption = "Basic information about backlinks")
@@ -265,11 +264,11 @@ Key takeaways:
 
 Key takeaways:
 
-* Higher ref_domains_dofollow, total_traffic and domain_rating are more common for better positions
-* ahrefs_rank seems to be telling the same story, the only difference is that small number for rank is better, so the shape is inverted
+* Higher # of referring do-follow domains (ref_domains_dofollow), total traffic numbers as well as domain rating are positivey related with higher GMB positions.
+* The Ahrefs rank seems to be telling the same story. The only difference is that a lower ahrefs rank number seems to be indicate higher positions, so the shape is inverted. 
 
 
-# Provided updates and number of photos
+### 3.2.5 Provided updates and number of photos
 
 ```{r other_features_table, echo=FALSE}
   misc_features_table <- read.csv(here::here("plots", "csv", "misc_features_table.csv"), stringsAsFactors=F)
@@ -284,6 +283,25 @@ Key takeaways:
 ```    
 Key takeaways:
 
-* Businesses who provide Google updates more often tend to have better positions.
-* Similarly, also higher number of photos is correlated with better positions.
-* So once again, activity seems to be the key
+* GMB listings which provide more frequent Google updates tend to indicate higher positions.
+* Similarly, the number of photos is positively correlated with better GMB positions.
+* So once again, activity seems to be the key. 
+
+
+# 4 Technical Annex 
+
+The goal of the statistical model in this study is to find answers to three key questions:
+
+1. How accurately can the rankings be predicted given the dependent variables?
+2. What are the most important features for the predictions?
+3. What is the direction of the impact?
+
+The statistical method of choice for this study was the gradient boosted decision trees (GBDT) model. The GBDT is a widely used machine learning technique which can be used in many settings. These can range from regression and classification to learning to rank type of problems. In a learning to rank problem, there is a ordered list of items and the goal for the model is to calculate a score for each item based on the dependent variables such that the original order is retained. 
+
+In process of building the model, data set was split into two pieces: the training data set (containing around 70% of searches) and testing data set (the remainder with about 30%). The GBDT model was fitted using training data, predictions were calculated for the test data set. Then the predictions were compared to real observed rankings. The chosen evaluation metric was Spearman's rank correlation coefficient. Spearman's rank correlation is a scaled measurement of the agreement of two rankings. Perfectly matching rankings would provide a value of 1, the expected value for random rankings is zero. The reverse order would have value of -1.
+
+The next step is to understand why the model makes particular predictions; what are the most important dependent variables and how their values effect the predictions? For this purpose, the SHapley Additive exPlanations (SHAP) values were calculated. In SHAP, each prediction is presented as a sum of each dependent variable's responsibility. Then the overall impact of any particular variable can be measured as a average of absolute values over the whole data set.
+
+**Note on the variables**
+
+All variables with the prefix “Relative” are calculated as rank (values) / length (values) for values inside each search group. For example, a search compromised of “Milwaukee car accident lawyer”, the entry with the highest number of photos would get the relative # of photos value equal to 1. The entry with the lowest value would get a 0, and the remaining values would be something in between. The motivation behind this transformation is to make attribute values more comparable between search results i.e. trying to minimize effect of the size of the population of the city. 
