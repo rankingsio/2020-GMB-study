@@ -94,7 +94,7 @@ We applied a state of the art machine learning model (first published in 2017) t
 
 ## 3.1 The importance of individial ranking factors
 
-The plot below indicates what factors are particulay important in impacting GMB rankings (a more technical explanation can be found below). We can conclude that having the same GMB city listed as in the search query has the largest effect on the ranking position, followed by the "type category is personal injury lawyer", # of reviews and the # of photos. Adding the string "lawyer or "attorney" to the title can also positively impact positions, according to our analysis. 
+The plot below indicates what factors are particulry important in impacting GMB rankings (a more technical explanation can be found below). We can conclude that having the same GMB city listed as in the search query has the largest effect on the ranking position, followed by the "type category is personal injury lawyer", # of reviews and the # of photos. Adding the string "lawyer or "attorney" to the title can also positively impact positions, according to our analysis. 
 
 GMB details such as adding street address, website domain, and phone number do not seem to be relevant. The same is true for social signals. 
 
@@ -110,9 +110,9 @@ The shap feature importance plot (see above) indicates the importance of each va
 
 On the other hand, the plot below shows the direction of the impact given each factor's value.
 
-For instance, if we look at the first row and the feature named "Has same city listed as in search query", we can see a polarized distribution of SHAP values around zero. Yellow points correspond to high feature values (in this case, "No"). That means that their impact to all predictions in the data set is negative. The purple points correspond to high feature values ("Yes") and have a positive impact on the predicted positions.
+For instance, if we look at the first row and the feature named "Has same city listed as in search query", we can see a polarized distribution of SHAP values around zero. Yellow points correspond to low feature values (in this case, "No"). That means that their impact to all predictions in the data set is negative. The purple points correspond to high feature values ("Yes") and have a positive impact on the predicted positions.
 
-To take another example, the "Type category is personal injury" variable behaves similiarly to the "Has same city listed as in search query" in that sense that they have higher feature values i.e. they will impact positively the predicted positions.
+To take another example, the "Type category is personal injury" variable behaves similarly to the "Has same city listed as in search query" in that sense that they have higher feature values i.e. they will impact positively the predicted positions.
 
 
 ```{r shap_values, echo=FALSE}
@@ -121,7 +121,7 @@ To take another example, the "Type category is personal injury" variable behaves
 
 ##### Accuracy
 
-The plot below shows the distribution of correlations calculated separately for each Google search.
+The plot below shows the distribution of correlations between model's predictions and observed positions calculated separately for each Google search.
 Overall, the mean correlation is about 0.6, showing fairly good fit between observations and predictions.
 
 ```{r spearman, echo=FALSE}
@@ -239,7 +239,7 @@ Key takeaways:
 
 * GMB listings with higher number of reviews tend to have  higher positions (top left corner).
 * In contrast, low number of reviews correlate with lower positions (bottom right).
-* Perhaps surprisingly, review ratings themself don't seem to show any effect on GMB lsiting´s position. It seems that only review activity matters. However, if almost 90% of ratings are five star ratings with an average rating of over 4.5, there perhaps isn't much room for a differentiation.
+* Perhaps surprisingly, review ratings themself don't seem to show any effect on GMB listing´s position. It seems that only review activity matters. However, if almost 90% of ratings are five star ratings with an average rating of over 4.5, there perhaps isn't much room for a differentiation.
 
 ### 3.2.4 SEO
 ```{r backlink_table, echo=FALSE}
@@ -305,3 +305,5 @@ The next step is to understand why the model makes particular predictions; what 
 **Note on the variables**
 
 All variables with the prefix “Relative” are calculated as rank (values) / length (values) for values inside each search group. For example, a search compromised of “Milwaukee car accident lawyer”, the entry with the highest number of photos would get the relative # of photos value equal to 1. The entry with the lowest value would get a 0, and the remaining values would be something in between. The motivation behind this transformation is to make attribute values more comparable between search results i.e. trying to minimize effect of the size of the population of the city. 
+
+Some of the variables included in the model can be considered to be control variables. I.e. they are not itself interest of the analysis, but have to be included to get more accurate view of impact of other factors, for example place population.
