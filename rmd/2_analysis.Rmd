@@ -665,7 +665,6 @@ for(i in 1:6) {
   ps[[i]] <- ggplot(data_vis[type_category == type_counts$category[i]], aes(x=position)) +
   geom_bar(fill=cols[1], width = .9) +
   scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
-  scale_y_continuous(expand = c(0, 0), breaks = seq(0, 1250, by = 250), limits = c(0, 1400)) +
   labs(title = type_counts$category[i], x = "Position", y = NULL) + 
   theme(plot.title = element_text(face = "plain", size = 14), 
         axis.title = element_text(size = 11, face = "plain"))

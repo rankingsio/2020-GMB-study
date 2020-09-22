@@ -170,6 +170,11 @@ The depended variables used in this study can be roughly organized into five mai
   knitr::include_graphics(here::here("plots", "png", "type_position_1.png"))
 ```
 
+```{r type_position_scaled, echo=FALSE}
+  knitr::include_graphics(here::here("plots", "png", "type_position_scaled_1.png"))
+```
+
+
 Key takeaways:
 
 * Distributions for more general categories ("Lawyer", "Law firm", "Legal services") are tilted towards lower positions in the search results compared to the best matching category ("Personal injury attorney").
