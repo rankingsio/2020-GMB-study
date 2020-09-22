@@ -19,7 +19,7 @@ if(save && !dir.exists(here::here("plots"))) {
 }
 
 #load required packages, if package is not found try to install
-required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "gridExtra", "wordcloud", "tm", "grDevices", "here", "pdftools", "plotly", "patchwork", "tidyverse")
+required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "gridExtra", "wordcloud", "tm", "grDevices", "here", "pdftools", "plotly", "patchwork", "tidyverse", "ggwordcloud", "ggthemes")
 
 not_installed_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
 if(length(not_installed_packages) > 0) 
@@ -54,7 +54,7 @@ theme_update(plot.background = element_rect(color = "white",
                                           color = "grey45", 
                                           margin = margin(b = 7)),
              plot.title.position = "plot",
-             panel.grid.major.y = element_line(color = "grey70", linetype = "dotted", size = .25),
+             panel.grid.major.y = element_line(color = "grey80", linetype = "dotted", size = .4),
              axis.text = element_text(color = "grey45"),
              axis.ticks.length = unit(.15, "lines"),
              axis.line.x = element_line(color = "#060618"),
@@ -640,13 +640,18 @@ if(save == T){
 ```{r type_category_plots, results='asis', echo=FALSE}
 #plots
 keep_top_N <- 10
-type_freq_plot <- ggplot(data=type_counts[1:keep_top_N,], aes(x=reorder(category, Freq), y=Freq)) +
+type_freq_plot <- 
+  type_counts[1:keep_top_N,] %>% 
+  mutate(perc = round(Freq / sum(Freq) * 100)) %>% 
+  ggplot(aes(x=reorder(category, Freq), y=Freq)) +
   geom_bar(stat="identity", fill=cols[1]) +
-  geom_text(aes(label = format(Freq, big.mark = ",")), family = "Alegreya", fontface = "bold", color = "grey45", nudge_y = 500, hjust = 0) +
+  geom_text(aes(label = glue::glue("{format(Freq, big.mark = ",")} ({perc}%)")), 
+            family = "Lora", fontface = "bold", color = "grey45", 
+            lineheight = .9, nudge_y = 500, hjust = 0) +
   ylab("Count") +
   xlab("Category") + 
   labs(title = "Ten most common type categories in search results") +
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 25000)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 27000)) +
   theme(plot.title = element_text(hjust = 0.5), 
         axis.text.y = element_text(color = "black"), 
         panel.grid.major.y = element_blank()) +
@@ -658,22 +663,80 @@ print(type_freq_plot)
 ps <- list()
 for(i in 1:6) {
   ps[[i]] <- ggplot(data_vis[type_category == type_counts$category[i]], aes(x=position)) +
-  geom_histogram(color="white", fill=cols[1], bins=20) +
-  scale_y_continuous(expand = c(0, 0)) +
+  geom_bar(fill=cols[1], width = .9) +
+  scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
+  scale_y_continuous(expand = c(0, 0), breaks = seq(0, 1250, by = 250), limits = c(0, 1400)) +
   labs(title = type_counts$category[i], x = "Position", y = NULL) + 
   theme(plot.title = element_text(face = "plain", size = 14), 
-        axis.title = element_text(size = 11, face = "plain"), 
-        axis.text.x=element_blank(), 
-        axis.ticks.x=element_blank())
+        axis.title = element_text(size = 11, face = "plain"))
 }
 
 type_position_plot <- 
   ps[[1]] + ps[[2]] + ps[[3]] + ps[[4]] + ps[[5]] + ps[[6]] +
   plot_layout(nrow = 2) +
-  plot_annotation(title = "Distribution of search positions for 6 most common type categories")
+  plot_annotation(title = "Distribution of search positions for the six most common type categories")
 #type_position_plot <- grid.arrange(ps[[1]], ps[[2]], ps[[3]],
 #             ps[[4]], ps[[5]], ps[[6]], nrow=2, ncol=3, top = "Distribution of search positions for 6 most common type categories")
 plot(type_position_plot)
+
+## for plotly
+variable <- type_counts$category[1:6]
+
+plot_facet <- function(p) {
+  ggplotly(p) %>% 
+    add_annotations(
+    text = p$labels$title,
+    x = 0.5,
+    y = 1,
+    yref = "paper",
+    xref = "paper",
+    xanchor = "middle",
+    yanchor = "top",
+    showarrow = FALSE,
+    font = list(size = 15)
+  )
+}
+
+type_position_plotly <- 
+  subplot(
+    plot_facet(ps[[1]]),
+    plot_facet(ps[[2]]),
+    plot_facet(ps[[3]]),
+    plot_facet(ps[[4]]),
+    plot_facet(ps[[5]]),
+    plot_facet(ps[[6]])
+  )
+
+## same y axis scaling for all
+ps <- list()
+for(i in 1:6) {
+  ps[[i]] <- ggplot(data_vis[type_category == type_counts$category[i]], aes(x=position)) +
+  geom_bar(fill=cols[1], width = .9) +
+  scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(title = type_counts$category[i], x = "Position", y = NULL) + 
+  theme(plot.title = element_text(face = "plain", size = 14), 
+        axis.title = element_text(size = 11, face = "plain"))
+}
+
+type_position_plot_scaled <- 
+  ps[[1]] + ps[[2]] + ps[[3]] + ps[[4]] + ps[[5]] + ps[[6]] +
+  plot_layout(nrow = 2) +
+  plot_annotation(title = "Distribution of search positions for the six most common type categories")
+#type_position_plot <- grid.arrange(ps[[1]], ps[[2]], ps[[3]],
+#             ps[[4]], ps[[5]], ps[[6]], nrow=2, ncol=3, top = "Distribution of search positions for 6 most common type categories")
+plot(type_position_plot_scaled)
+
+## for plotly
+type_position_plotly_scaled <- 
+  subplot(
+    plot_facet(ps[[1]]),
+    plot_facet(ps[[2]]),
+    plot_facet(ps[[3]]),
+    plot_facet(ps[[4]]),
+    plot_facet(ps[[5]]),
+    plot_facet(ps[[6]])
+  )
 
 
 if(save == T){ 
@@ -681,13 +744,17 @@ if(save == T){
          width = 12.5, height = 8, device = cairo_pdf) 
   ggsave(here::here("plots", "type_position.pdf"), type_position_plot, 
          width = 12.5, height = 8, device = cairo_pdf) 
+  ggsave(here::here("plots", "type_position_scaled.pdf"), type_position_plot, 
+         width = 12.5, height = 8, device = cairo_pdf) 
   
   ## !! Plotly doesnt work with multipanel plots!
   # interactive chart pushed to plotly chart studio
   g <- plotly(type_freq_plot, .15)
   api_create(g, filename = "type_freq_plot")
-  g <- plotly(type_position_plot, .2)
+  g <- plotly(type_position_plotly, .2)
   api_create(g, filename = "type_position_plot")
+  g <- plotly(type_position_plotly_scaled, .2)
+  api_create(g, filename = "type_position_plot_scaled")
 }
 ```    
 
@@ -873,7 +940,7 @@ plot_count_title <- ggplot(data_vis["title"!=""], aes(y=`#Characters in title`, 
 plot_count_description <-  ggplot(data_vis[description!=""], aes(y=`#Characters in description`, x=as.factor(position))) +
   geom_boxplot(color=cols[1], fill="grey85") +
   xlab("Position") +
-  ylab("#Characters") +
+  ylab("Number of Characters") +
   labs(title = "Description")
 #plot(plot_count_description)
 
@@ -907,7 +974,8 @@ description_missing_plot_facet <-
   mutate(cat = if_else(description == "", "Yes", "No"),
          cat = factor(cat, levels = c("Yes", "No"))) %>% 
   ggplot(aes(x=position)) +
-  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  geom_bar(fill=cols[1], width = .8) +
+  scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
   ylab("Count") +
   xlab("Position") + 
@@ -933,7 +1001,8 @@ description_car_personal_plot <-
   mutate(cat = if_else(`Has car accident or personal injury in description` == 1, "Yes", "No"),
          cat = factor(cat, levels = c("Yes", "No"))) %>% 
   ggplot(aes(x=position)) +
-  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  geom_bar(fill=cols[1], width = .8) +
+  scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
   ylab("Count") +
   xlab("Position") + 
@@ -960,7 +1029,8 @@ title_car_personal_plot <-
   mutate(cat = if_else(`Has car accident or personal injury in title` == 1, "Yes", "No"),
          cat = factor(cat, levels = c("Yes", "No"))) %>% 
   ggplot(aes(x=position)) +
-  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  geom_bar(fill=cols[1], width = .8) +
+  scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
   ylab("Count") +
   xlab("Position") + 
@@ -987,7 +1057,8 @@ description_lawyer_attorney_plot <-
   mutate(cat = if_else(`Has lawyer or attorney in description` == 1, "Yes", "No"),
          cat = factor(cat, levels = c("Yes", "No"))) %>% 
   ggplot(aes(x=position)) +
-  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  geom_bar(fill=cols[1], width = .8) +
+  scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
   ylab("Count") +
   xlab("Position") + 
@@ -1013,7 +1084,8 @@ title_lawyer_attorney_plot <-
   mutate(cat = if_else(`Has lawyer or attorney in title` == 1, "Yes", "No"),
          cat = factor(cat, levels = c("Yes", "No"))) %>% 
   ggplot(aes(x=position)) +
-  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  geom_bar(fill=cols[1], width = .8) +
+  scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
   ylab("Count") +
   xlab("Position") + 
@@ -1040,7 +1112,8 @@ description_city_plot <-
   mutate(cat = if_else(`Has same city listed as in search query` == 1, "Yes", "No"),
          cat = factor(cat, levels = c("Yes", "No"))) %>% 
   ggplot(aes(x=position)) +
-  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  geom_bar(fill=cols[1], width = .8) +
+  scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
   ylab("Count") +
   xlab("Position") + 
@@ -1067,7 +1140,8 @@ title_city_plot <-
   mutate(cat = if_else(`Has city in title` == 1, "Yes", "No"),
          cat = factor(cat, levels = c("Yes", "No"))) %>% 
   ggplot(aes(x=position)) +
-  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  geom_bar(fill=cols[1], width = .8) +
+  scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
   ylab("Count") +
   xlab("Position") + 
@@ -1173,20 +1247,32 @@ if(save == T){
 
 ```{r reviews_plots, results='asis', echo=FALSE}
 
-rating_distribution_plot <- ggplot(all_reviews, aes(x=all_reviews_rating)) +
-  geom_bar(color="white", fill=cols[1]) +
+rating_distribution_plot <- 
+  all_reviews %>% 
+  as_tibble() %>% 
+  dplyr::mutate(total = n(), all_reviews_rating = factor(all_reviews_rating, levels = 1:5)) %>% 
+  dplyr::group_by(all_reviews_rating) %>% 
+  dplyr::mutate(n = n(), perc = round(n / total * 100)) %>% 
+  ## summarise does soemhow not work with data.table....
+  #dplyr::summarise(perc = total / n) %>% 
+  dplyr::slice(1) %>% 
+  ggplot(aes(x=all_reviews_rating, y=n)) +
+  geom_col(fill=cols[1]) +
+  geom_text(aes(label = glue::glue("{format(n, big.mark = ',')} ({perc}%)")), 
+            family = "Lora", fontface = "bold", color = "grey45", size = 3.5,
+            hjust = .5, lineheight = .9, nudge_y = 45000) +
+  
   ylab("Count") +
   xlab("Rating") + 
   labs(title = "Ratings distribution") +
-  scale_y_continuous(labels = scales::comma_format(), expand = c(0, 0))
+  scale_y_continuous(labels = scales::comma_format(), expand = c(0, 0), limits = c(0, 1200000))
 plot(rating_distribution_plot)
 
 review_position_plot <- ggplot(data_vis, aes(y=`Relative # of reviews`, x=as.factor(position))) +
   geom_boxplot(color=cols[1], fill="grey85") +
   ylab("Relative # of reviews") +
   xlab("Position") +
-  labs(title = "Relative # of reviews boxplot") +
-  scale_y_continuous(labels = scales::percent_format())
+  labs(title = "Relative # of reviews boxplot")
 plot(review_position_plot)
 
 rating_position_plot <- ggplot(data_vis[!is.na(`Review rating`)], aes(y=`Review rating`, x=as.factor(position))) +
@@ -1376,7 +1462,8 @@ provides_updates_plot_facet <-
   mutate(cat = if_else(`Provides updates` == 1, "Yes", "No"),
          cat = factor(cat, levels = c("Yes", "No"))) %>% 
   ggplot(aes(x=position)) +
-  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  geom_bar(fill=cols[1], width = .8) +
+  scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
   ylab("Count") +
   xlab("Position") + 
