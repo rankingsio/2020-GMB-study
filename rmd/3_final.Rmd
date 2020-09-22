@@ -14,12 +14,12 @@ output:
 editor_options:
   chunk_output_type: console
 ---
-  
-  <style>
-  .list-group-item.active, .list-group-item.active:hover, .list-group-item.active:focus {
-    background-color: #00d188;
-      border-color: #00d188;
-  }
+
+<style>
+.list-group-item.active, .list-group-item.active:hover, .list-group-item.active:focus {
+  background-color: #00d188;
+    border-color: #00d188;
+}
 
 body {
   font-family: montserrat;
@@ -195,17 +195,35 @@ knitr::kable(title_description_table, caption = "Basic information about titles 
 ```{r title_description_counts, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "title_description_counts_1.png"))
 ```
+
 ```{r description_missing, echo=FALSE}
   knitr::include_graphics(here::here("plots", "png", "description_missing_1.png"))
 ```
 
-```{r description_keywords, echo=FALSE}
-  knitr::include_graphics(here::here("plots", "png", "description_keywords_1.png"))
+```{r description_keywords_car, echo=FALSE}
+  knitr::include_graphics(here::here("plots", "png", "description_car_personal_1.png"))
 ```
 
-```{r title_keywords, echo=FALSE}
-  knitr::include_graphics(here::here("plots", "png", "title_keywords_1.png"))
+```{r description_keywords_lawyer, echo=FALSE}
+  knitr::include_graphics(here::here("plots", "png", "description_lawyer_attorney_1.png"))
 ```
+
+```{r description_keywords_city, echo=FALSE}
+  knitr::include_graphics(here::here("plots", "png", "description_city_1.png"))
+```
+
+```{r title_keywords_car, echo=FALSE}
+  knitr::include_graphics(here::here("plots", "png", "title_car_personal_1.png"))
+```
+
+```{r title_keywords_lawyer, echo=FALSE}
+  knitr::include_graphics(here::here("plots", "png", "title_lawyer_attorney_1.png"))
+```
+
+```{r title_keywords_city, echo=FALSE}
+  knitr::include_graphics(here::here("plots", "png", "title_city_1.png"))
+```
+
 
 Key takeaways:
 

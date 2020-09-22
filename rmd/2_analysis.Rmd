@@ -1,7 +1,8 @@
 ---
 title: "2_analysis"
 output: html_document
-
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -9,26 +10,84 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r results=FALSE, message=FALSE, echo=FALSE}
-  save <- T
-  #create plots folder, if it doesn't exist
-  if(save && !dir.exists(here::here("plots"))) {
-    dir.create(here::here("plots"))
-    dir.create(here::here("plots", "png"))
-    dir.create(here::here("plots", "csv"))
-  }
+save <- T
+#create plots folder, if it doesn't exist
+if(save && !dir.exists(here::here("plots"))) {
+  dir.create(here::here("plots"))
+  dir.create(here::here("plots", "png"))
+  dir.create(here::here("plots", "csv"))
+}
 
-  #load required packages, if package is not found try to install
-  required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "ggplot2", "gridExtra", "wordcloud", "tm", "grDevices", "here", "pdftools")
+#load required packages, if package is not found try to install
+required_packages <- c("xgboost", "data.table", "stringr", "SHAPforxgboost", "gridExtra", "wordcloud", "tm", "grDevices", "here", "pdftools", "plotly", "patchwork", "tidyverse")
 
-  not_installed_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
-  if(length(not_installed_packages) > 0) 
-    install.packages(not_installed_packages)
-  was_succesfully_loaded <- sapply(required_packages, require, character.only = TRUE)
-  
-  if(any(!was_succesfully_loaded)) {
-    cat(required_packages[!was_succesfully_loaded],"\n")
-  }
+not_installed_packages <- required_packages[!(required_packages %in% installed.packages()[,"Package"])]
+if(length(not_installed_packages) > 0) 
+  install.packages(not_installed_packages)
+was_succesfully_loaded <- sapply(required_packages, require, character.only = TRUE)
+
+if(any(!was_succesfully_loaded)) {
+  cat(required_packages[!was_succesfully_loaded],"\n")
+}
 ```
+
+```{r plot-prep}
+cols <- c("#d21c5c", "#060618")
+caption <- "Graphic: FrontPage Data"
+
+## theme updates
+theme_set(ggthemes::theme_clean(base_size = 18, base_family = "Alegreya Sans"))
+
+theme_update(plot.background = element_rect(color = "white", 
+                                            fill = "white"),
+             panel.background = element_rect(color = NA, 
+                                             fill = NA),
+             plot.margin = margin(rep(20, 4)),
+             plot.title = element_text(family = "Lora",
+                                       color = "#060618", 
+                                       size = 16, 
+                                       hjust = .5, 
+                                       margin = margin(b = 10)),
+             plot.subtitle = element_text(#size = 9, 
+                                          hjust = .5, 
+                                          face = "plain", 
+                                          color = "grey45", 
+                                          margin = margin(b = 7)),
+             plot.title.position = "plot",
+             panel.grid.major.y = element_line(color = "grey70", linetype = "dotted", size = .25),
+             axis.text = element_text(color = "grey45"),
+             axis.ticks.length = unit(.15, "lines"),
+             axis.line.x = element_line(color = "#060618"),
+             axis.ticks.x = element_line(color = "#060618", 
+                                         size = .3),
+             axis.title.x = element_text(color = "#060618", 
+                                         face = "bold", 
+                                         margin = margin(t = 10)),
+             axis.line.y = element_blank(), 
+             axis.ticks.y = element_blank(),
+             axis.title.y = element_text(color = "#060618", 
+                                         face = "bold", 
+                                         margin = margin(r = 10)),
+             strip.background = element_rect(color = NA, 
+                                             fill = NA))
+
+## plotly function
+
+plotly <- function(p, pos) {
+  ggplotly(p) %>%
+  config(displayModeBar = FALSE) %>%    
+  layout(
+    margin = list(l = 50, r = 50, t = 100, b = pos*700),
+    annotations =
+    list(x = 1, y = -pos, text = caption,
+         showarrow = F, xref = 'paper', yref = 'paper',
+         xanchor = 'right', yanchor = 'auto', xshift = 0, yshift = 0,
+         font = list(size = 14, family = "Lora"))
+ )
+}
+```
+
+
 
 ## To-Do-List
 
@@ -427,17 +486,22 @@ spearman_data <- spearman_data[, list(correlation=cor(target, pred, method="spea
 ```{r accuracy, echo = FALSE}
 mean_correlation <- format(round(mean(spearman_data$correlation), 2), nsmall = 2)
 spearman_plot <- ggplot(spearman_data, aes(x = correlation)) + 
-  geom_histogram(fill="steelblue", color="white", binwidth=0.05) +
+  geom_bar(fill=cols[1], color="white") +
   xlab("Correlations for search rankings") +
   ylab("Count") + 
+  scale_x_binned() +
+  scale_y_continuous(expand = c(0,0), breaks = 0:5 * 20) +
   labs(title = paste0("Mean Spearman's correlations between predicted and observed rankings: ", mean_correlation))
 plot(spearman_plot)
 
 if(save == T){ 
   ggsave(here::here("plots", "spearman.pdf"), spearman_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
-}
+         width = 10, height = 7, device = cairo_pdf) 
 
+  # interactive chart pushed to plotly chart studio
+  g <- plotly(spearman_plot, .2)
+  api_create(g, filename = "spearman_plot")
+}
 ```
 
 ### Feature importance
@@ -456,22 +520,36 @@ if(save == T){
 
 feature_importance_plot <- ggplot(shap_importance, aes(x=reorder(feature, importance), y=importance, fill=importance)) +
   geom_bar(stat='identity') + 
-  scale_fill_gradient2(low = "red", mid ="yellow", high = "green", midpoint = 0) + 
+  scale_fill_gradient2(low = cols[2], mid = cols[2], high = cols[1], midpoint = 0) + 
   xlab("Feature") +
   ylab("Importance") + 
   labs(title = "SHAP feature importance") + 
-  theme(plot.title = element_text(hjust = 0.5), legend.position="none", axis.text.x=element_blank(), axis.ticks.x=element_blank()) + scale_y_continuous(limits=c(0.0,NA))+
-  coord_flip()
+  theme(legend.position="none", 
+        #axis.text.x=element_blank(), 
+        #axis.ticks.x=element_blank(),
+        axis.text.x = element_text(size = 9, color = "grey45"),
+        #axis.title.x = element_text(size = 11, color = "grey45", margin = margin(t = 5)),
+        axis.text.y = element_text(size = 10, color = "black"),
+        panel.grid.major.x = element_line(color = "grey70", linetype = "dotted", size = .25),
+        panel.grid.major.y = element_blank()) +  
+  scale_y_continuous(limits=c(0.0,NA), expand=c(0,0))+
+  coord_flip() +
+  labs(x = NULL)
 plot(feature_importance_plot)
+
 
 shap_values_plot <- shap.plot.summary.wrap2(shap_values$shap_score, X_train, dilute=3)
 plot(shap_values_plot)
 
 if(save == T){ 
   ggsave(here::here("plots", "feature_importance.pdf"), feature_importance_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
+         width = 7.5, height = 9, device = cairo_pdf) 
   ggsave(here::here("plots", "shap_values.pdf"), shap_values_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
+         width = 12, height = 10.5, device = cairo_pdf) 
+  
+  # interactive chart pushed to plotly chart studio
+  g <- plotly(feature_importance_plot, .1)
+  api_create(g, filename = "feature_importance_plot")
 }
 
 ```
@@ -563,31 +641,53 @@ if(save == T){
 #plots
 keep_top_N <- 10
 type_freq_plot <- ggplot(data=type_counts[1:keep_top_N,], aes(x=reorder(category, Freq), y=Freq)) +
-  geom_bar(stat="identity", fill="steelblue") +
+  geom_bar(stat="identity", fill=cols[1]) +
+  geom_text(aes(label = format(Freq, big.mark = ",")), family = "Alegreya", fontface = "bold", color = "grey45", nudge_y = 500, hjust = 0) +
   ylab("Count") +
   xlab("Category") + 
   labs(title = "Ten most common type categories in search results") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  coord_flip()
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 25000)) +
+  theme(plot.title = element_text(hjust = 0.5), 
+        axis.text.y = element_text(color = "black"), 
+        panel.grid.major.y = element_blank()) +
+  coord_flip() +
+  labs(x = NULL)
 print(type_freq_plot)
+
 
 ps <- list()
 for(i in 1:6) {
   ps[[i]] <- ggplot(data_vis[type_category == type_counts$category[i]], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = type_counts$category[i]) + 
-  theme(plot.title = element_text(hjust = 0.5), axis.text.x=element_blank(), axis.ticks.x=element_blank())
+  geom_histogram(color="white", fill=cols[1], bins=20) +
+  scale_y_continuous(expand = c(0, 0)) +
+  labs(title = type_counts$category[i], x = "Position", y = NULL) + 
+  theme(plot.title = element_text(face = "plain", size = 14), 
+        axis.title = element_text(size = 11, face = "plain"), 
+        axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank())
 }
-type_position_plot <- grid.arrange(ps[[1]], ps[[2]], ps[[3]],
-             ps[[4]], ps[[5]], ps[[6]], nrow=2, ncol=3, top = "Distribution of search positions for 6 most common type categories")
+
+type_position_plot <- 
+  ps[[1]] + ps[[2]] + ps[[3]] + ps[[4]] + ps[[5]] + ps[[6]] +
+  plot_layout(nrow = 2) +
+  plot_annotation(title = "Distribution of search positions for 6 most common type categories")
+#type_position_plot <- grid.arrange(ps[[1]], ps[[2]], ps[[3]],
+#             ps[[4]], ps[[5]], ps[[6]], nrow=2, ncol=3, top = "Distribution of search positions for 6 most common type categories")
+plot(type_position_plot)
+
 
 if(save == T){ 
-  ggsave(here::here("plots", "type_freq.pdf"), type_freq_plot, 
+  ggsave(here::here("plots", "type_freq.pdf"), type_freq_plot + theme(axis.text.y = element_text(size = 16)), 
          width = 12.5, height = 8, device = cairo_pdf) 
   ggsave(here::here("plots", "type_position.pdf"), type_position_plot, 
          width = 12.5, height = 8, device = cairo_pdf) 
+  
+  ## !! Plotly doesnt work with multipanel plots!
+  # interactive chart pushed to plotly chart studio
+  g <- plotly(type_freq_plot, .15)
+  api_create(g, filename = "type_freq_plot")
+  g <- plotly(type_position_plot, .2)
+  api_create(g, filename = "type_position_plot")
 }
 ```    
 
@@ -676,169 +776,358 @@ old_par <- par()
 words_titles <- generate_wordcloud_data(data_all[title!=""]$title)
 words_desc <- generate_wordcloud_data(data_all[description!=""]$description)
 
+set.seed(1)
+
+desc_wordcloud <-
+  words_desc$words %>% 
+  as_tibble %>% 
+  top_n(100, freq) %>%  
+  mutate(word = str_to_upper(word),
+         angle = 90 * sample(c(0, 1), n(), replace = TRUE, prob = c(60, 40))) %>%
+  ggplot(aes(label = word, size = freq, color = freq)) +
+    geom_text_wordcloud(
+      #aes(angle = angle),
+      family = "Alegreya",
+      fontface = "bold",
+      shape = "circle",
+      grid_margin = 2.5
+    ) +
+    scale_color_gradient(low = "grey85", high = cols[1]) +
+    scale_size_area(max_size = 10) +
+    labs(title = "\n100 most common words in the description") +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = .5, family = "Lora", face = "bold"))
+plot(desc_wordcloud)
+
+title_wordcloud <- 
+  words_titles$words %>% 
+  as_tibble %>% 
+  top_n(100, freq) %>%  
+  mutate(word = str_to_upper(word),
+         angle = 90 * sample(c(0, 1), n(), replace = TRUE, prob = c(60, 40))) %>%
+  ggplot(aes(label = word, size = freq, color = freq)) +
+    geom_text_wordcloud(
+      #aes(angle = angle),
+      family = "Alegreya",
+      fontface = "bold",
+      shape = "circle",
+      grid_margin = 2.5
+    ) +
+    scale_color_gradient(low = "grey85", high = cols[1]) +
+    scale_size_area(max_size = 18) +
+    labs(title = "\n100 most common words in the title") +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = .5, family = "Lora", face = "bold"))
+plot(title_wordcloud)
+
 
 if(save) {
-  pdf(here::here("plots", "descriptions_wordcloud.pdf"), width=12.5, height=8)
-}
-layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
-par(mar=rep(0, 4))
-plot.new()
-text(x=0.5, y=0.5, "Descriptions word cloud")
-descriptions_wordcloud_plot <- wordcloud(words = words_desc$words$word, 
-                                         freq = words_desc$words$freq, min.freq = 3,
-                                         max.words=100, random.order=FALSE, rot.per=0.35,
-                                         colors=brewer.pal(8, "Dark2"))
-if(save) {
-  dev.off()
+  ggsave(here::here("plots", "descriptions_wordcloud.pdf"), desc_wordcloud, width=8, height=6, device = cairo_pdf)
+  ggsave(here::here("plots", "titles_wordcloud.pdf"), title_wordcloud, width=8, height=4.5, device = cairo_pdf)
 }
 
-if(save == T) {
-  pdf(here::here("plots", "titles_wordcloud.pdf"), width=12.5, height=8)
-}
-layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
-par(mar=rep(0, 4))
-plot.new()
-text(x=0.5, y=0.5, "Titles word cloud")
-titles_wordcloud_plot <- wordcloud(words = words_titles$words$word, 
-                                   freq = words_titles$words$freq, min.freq = 3,
-                                   max.words=100, random.order=FALSE, rot.per=0.35,
-                                   colors=brewer.pal(8, "Dark2"))
-
-if(save == T) {
-  dev.off()
-}
-
-#back to default
-par(old_par) 
-options(warn = defaultW)
+# if(save) {
+#   pdf(here::here("plots", "descriptions_wordcloud.pdf"), width=8, height=8)
+# }
+# layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+# par(mar=rep(0, 4))
+# plot.new()
+# text(x=0.5, y=0.5, "Descriptions word cloud")
+# descriptions_wordcloud_plot <- wordcloud(words = words_desc$words$word, 
+#                                          freq = words_desc$words$freq, min.freq = 3,
+#                                          max.words=100, random.order=FALSE, rot.per=0.35, 
+#                                          colors=c(colorspace::lighten(cols[1], .7), cols[1]))#brewer.pal(8, "Dark2"))
+# if(save) {
+#   dev.off()
+# }
+# 
+# if(save == T) {
+#   pdf(here::here("plots", "titles_wordcloud.pdf"), width=8, height=8)
+# }
+# layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+# par(mar=rep(0, 4))
+# plot.new()
+# text(x=0.5, y=0.5, "Titles word cloud")
+# titles_wordcloud_plot <- wordcloud(words = words_titles$words$word, 
+#                                    freq = words_titles$words$freq, min.freq = 3,
+#                                    max.words=100, random.order=FALSE, rot.per=0.35,
+#                                    colors=c(colorspace::lighten(cols[1], .5), cols[1]))#brewer.pal(8, "Dark2"))
+# 
+# if(save == T) {
+#   dev.off()
+# }
+# 
+# #back to default
+# par(old_par) 
+# options(warn = defaultW)
 
 ```
 
 ```{r title_description_plots, results='asis', echo=FALSE, message=FALSE}
 plot_count_title <- ggplot(data_vis["title"!=""], aes(y=`#Characters in title`, x=as.factor(position))) +
-  geom_boxplot(color="white", fill="steelblue") +
-  ylab("#Characters") +
+  geom_boxplot(color=cols[1], fill="grey85") +
   xlab("Position") +
-  labs(title = "Title") +
-  theme(plot.title = element_text(hjust = 0.5))
+  ylab(NULL) +
+  labs(title = "Title")
+#plot(plot_count_title)
 plot_count_description <-  ggplot(data_vis[description!=""], aes(y=`#Characters in description`, x=as.factor(position))) +
-  geom_boxplot(color="white", fill="steelblue") +
-  ylab("#Characters") +
+  geom_boxplot(color=cols[1], fill="grey85") +
   xlab("Position") +
-  labs(title = "Description") +
-  theme(plot.title = element_text(hjust = 0.5))
-title_description_counts_plot <- grid.arrange(plot_count_title, plot_count_description, nrow=1, ncol=2, top="Non-empty title and description length boxplots")
+  ylab("#Characters") +
+  labs(title = "Description")
+#plot(plot_count_description)
 
-plot_missing_description <- ggplot(data_vis[description==""], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Yes") +
-  theme(plot.title = element_text(hjust = 0.5))
-plot_not_missing_description <- ggplot(data_vis[description!=""], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "No") +
-  theme(plot.title = element_text(hjust = 0.5))
-description_missing_plot <- grid.arrange(plot_missing_description, plot_not_missing_description, nrow=1, ncol=2, top="Empty description")
+#title_description_counts_plot <- grid.arrange(plot_count_title, plot_count_description, nrow=1, ncol=2, top="Non-empty title and description length boxplots")
+
+title_description_counts_plot <- 
+  (plot_count_description + plot_count_title) * theme(plot.title = element_text(face = "plain", size = 14)) +
+  plot_annotation(title = "Non-empty title and description length boxplots")
+plot(title_description_counts_plot)
+
+## !! subplot keeps only last ttiel so no title per subplot possible (?)
+#subplot(ggplotly(plot_count_title), ggplotly(plot_count_description))
 
 
-plot_car_personal_desc0 <- ggplot(data_vis[`Has car accident or personal injury in description` == 0], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "No \"car accident\" or \"personal injury\"") +
-  theme(plot.title = element_text(hjust = 0.5))
-plot_car_personal_desc1 <- ggplot(data_vis[`Has car accident or personal injury in description` == 1], aes(x=position)) +
-   geom_histogram(color="white", fill="steelblue", bins=20) +
-   ylab("Count") +
-   xlab("Position") + 
-   labs(title = "Has \"car accident\" or \"personal injury\"") +
-   theme(plot.title = element_text(hjust = 0.5))
-plot_car_personal_title0 <- ggplot(data_vis[`Has car accident or personal injury in title` == 0], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "No \"car accident\" or \"personal injury\"") +
-  theme(plot.title = element_text(hjust = 0.5))
-plot_car_personal_title1 <- ggplot(data_vis[`Has car accident or personal injury in title` == 1], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Has \"car accident\" or \"personal injury\"") +
-  theme(plot.title = element_text(hjust = 0.5))
+# plot_missing_description <- ggplot(data_vis[description==""], aes(x=position)) +
+#   geom_histogram(color=cols[1], fill="grey85", bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "Yes") +
+#   theme(plot.title = element_text(hjust = 0.5)) + facet_wrap()
+# plot_not_missing_description <- ggplot(data_vis[description!=""], aes(x=position)) +
+#   geom_histogram(color=cols[1], fill="grey85", bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "No") +
+#   theme(plot.title = element_text(hjust = 0.5))
+# description_missing_plot <- grid.arrange(plot_missing_description, plot_not_missing_description, nrow=1, ncol=2, top="Empty description")
 
-plot_lawyer_attorney_desc0 <- ggplot(data_vis[`Has lawyer or attorney in description` == 0], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
+description_missing_plot_facet <- 
+  data_vis %>% 
+  mutate(cat = if_else(description == "", "Yes", "No"),
+         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  ggplot(aes(x=position)) +
+  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  scale_y_continuous(expand = c(0,0))  +
   ylab("Count") +
   xlab("Position") + 
-  labs(title = "No \"lawyer\" or \"attorney\"") +
-  theme(plot.title = element_text(hjust = 0.5))
-plot_lawyer_attorney_desc1 <- ggplot(data_vis[`Has lawyer or attorney in description` == 1], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Has \"lawyer\" or \"attorney\"") +
-  theme(plot.title = element_text(hjust = 0.5))
-plot_lawyer_attorney_title0 <- ggplot(data_vis[`Has lawyer or attorney in title` == 0], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "No \"lawyer\" or \"attorney\"") +
-  theme(plot.title = element_text(hjust = 0.5))
-plot_lawyer_attorney_title1 <- ggplot(data_vis[`Has lawyer or attorney in title` == 1], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Has \"lawyer\" or \"attorney\"") +
-  theme(plot.title = element_text(hjust = 0.5))
+  labs(title = "Empty description?") + 
+  facet_wrap(~cat)
+plot(description_missing_plot_facet)
 
-plot_city_desc0 <- ggplot(data_vis[`Has same city listed as in search query`==1], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "No city name") +
-  theme(plot.title = element_text(hjust = 0.5))
-plot_city_desc1 <- ggplot(data_vis[`Has city in description` == 1], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Has city name") +
-  theme(plot.title = element_text(hjust = 0.5))
-plot_city_title0 <- ggplot(data_vis[`Has city in title` == 0], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "No city name") +
-  theme(plot.title = element_text(hjust = 0.5))
-plot_city_title1 <- ggplot(data_vis[`Has city in title` == 1], aes(x=position)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Has city name") +
-  theme(plot.title = element_text(hjust = 0.5))
+# plot_car_personal_title0 <- ggplot(data_vis[`Has car accident or personal injury in title` == 0], aes(x=position)) +
+#   geom_histogram(color="white", fill=cols[1], bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "No \"car accident\" or \"personal injury\"") +
+#   theme(plot.title = element_text(hjust = 0.5))
+# plot_car_personal_title1 <- ggplot(data_vis[`Has car accident or personal injury in title` == 1], aes(x=position)) +
+#   geom_histogram(color="white", fill=cols[1], bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "Has \"car accident\" or \"personal injury\"") +
+#   theme(plot.title = element_text(hjust = 0.5))
 
-title_keywords_plot <- grid.arrange(plot_car_personal_title0, plot_car_personal_title1,
-             plot_lawyer_attorney_title0, plot_lawyer_attorney_title1,
-             plot_city_title0, plot_city_title1,
-             nrow=3, ncol=2, top="Title containing keywords")
+description_car_personal_plot <-
+  data_vis %>% 
+  mutate(cat = if_else(`Has car accident or personal injury in description` == 1, "Yes", "No"),
+         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  ggplot(aes(x=position)) +
+  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  scale_y_continuous(expand = c(0,0))  +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Has \"car accident\" or \"personal injury\" in description?") +
+  facet_wrap(~cat)
+plot(description_car_personal_plot)
 
-description_keywords_plot <- grid.arrange(plot_car_personal_desc0, plot_car_personal_desc1,
-             plot_lawyer_attorney_desc0,  plot_lawyer_attorney_desc1,
-             plot_city_desc0, plot_city_desc1,
-             nrow=3, ncol=2, top="Description containing keywords")
+
+# plot_car_personal_desc0 <- ggplot(data_vis[`Has car accident or personal injury in description` == 0], aes(x=position)) +
+#   geom_histogram(color="white", fill=cols[1], bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "No \"car accident\" or \"personal injury\"") +
+#   theme(plot.title = element_text(hjust = 0.5))
+# plot_car_personal_desc1 <- ggplot(data_vis[`Has car accident or personal injury in description` == 1], aes(x=position)) +
+#    geom_histogram(color="white", fill=cols[1], bins=20) +
+#    ylab("Count") +
+#    xlab("Position") + 
+#    labs(title = "Has \"car accident\" or \"personal injury\"") +
+#    theme(plot.title = element_text(hjust = 0.5))
+
+title_car_personal_plot <-
+  data_vis %>% 
+  mutate(cat = if_else(`Has car accident or personal injury in title` == 1, "Yes", "No"),
+         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  ggplot(aes(x=position)) +
+  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  scale_y_continuous(expand = c(0,0))  +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Has \"car accident\" or \"personal injury\" in title?") +
+  facet_wrap(~cat)
+plot(title_car_personal_plot)
+
+
+# plot_lawyer_attorney_desc0 <- ggplot(data_vis[`Has lawyer or attorney in description` == 0], aes(x=position)) +
+#   geom_histogram(color="white", fill=cols[1], bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "No \"lawyer\" or \"attorney\"") +
+#   theme(plot.title = element_text(hjust = 0.5))
+# plot_lawyer_attorney_desc1 <- ggplot(data_vis[`Has lawyer or attorney in description` == 1], aes(x=position)) +
+#   geom_histogram(color="white", fill=cols[1], bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "Has \"lawyer\" or \"attorney\"") +
+#   theme(plot.title = element_text(hjust = 0.5))
+
+description_lawyer_attorney_plot <-
+  data_vis %>% 
+  mutate(cat = if_else(`Has lawyer or attorney in description` == 1, "Yes", "No"),
+         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  ggplot(aes(x=position)) +
+  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  scale_y_continuous(expand = c(0,0))  +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Has \"lawyer\" or \"attorney\" in description?") +
+  facet_wrap(~cat)
+plot(description_lawyer_attorney_plot)
+
+# plot_lawyer_attorney_title0 <- ggplot(data_vis[`Has lawyer or attorney in title` == 0], aes(x=position)) +
+#   geom_histogram(color="white", fill=cols[1], bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "No \"lawyer\" or \"attorney\"") +
+#   theme(plot.title = element_text(hjust = 0.5))
+# plot_lawyer_attorney_title1 <- ggplot(data_vis[`Has lawyer or attorney in title` == 1], aes(x=position)) +
+#   geom_histogram(color="white", fill=cols[1], bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "Has \"lawyer\" or \"attorney\"") +
+#   theme(plot.title = element_text(hjust = 0.5))
+
+title_lawyer_attorney_plot <-
+  data_vis %>% 
+  mutate(cat = if_else(`Has lawyer or attorney in title` == 1, "Yes", "No"),
+         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  ggplot(aes(x=position)) +
+  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  scale_y_continuous(expand = c(0,0))  +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Has \"lawyer\" or \"attorney\" in title?") +
+  facet_wrap(~cat)
+plot(title_lawyer_attorney_plot)
+
+
+# plot_city_desc0 <- ggplot(data_vis[`Has same city listed as in search query`==1], aes(x=position)) +
+#   geom_histogram(color="white", fill=cols[1], bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "No city name") +
+#   theme(plot.title = element_text(hjust = 0.5))
+# plot_city_desc1 <- ggplot(data_vis[`Has city in description` == 1], aes(x=position)) +
+#   geom_histogram(color="white", fill=cols[1], bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "Has city name") +
+#   theme(plot.title = element_text(hjust = 0.5))
+
+description_city_plot <-
+  data_vis %>% 
+  mutate(cat = if_else(`Has same city listed as in search query` == 1, "Yes", "No"),
+         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  ggplot(aes(x=position)) +
+  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  scale_y_continuous(expand = c(0,0))  +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Is city name in description?") +
+  theme() +
+  facet_wrap(~cat)
+plot(description_city_plot)
+
+# plot_city_title0 <- ggplot(data_vis[`Has city in title` == 0], aes(x=position)) +
+#   geom_histogram(color="white", fill=cols[1], bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "No city name") +
+#   theme(plot.title = element_text(hjust = 0.5))
+# plot_city_title1 <- ggplot(data_vis[`Has city in title` == 1], aes(x=position)) +
+#   geom_histogram(color="white", fill=cols[1], bins=20) +
+#   ylab("Count") +
+#   xlab("Position") + 
+#   labs(title = "Has city name") +
+#   theme(plot.title = element_text(hjust = 0.5))
+
+title_city_plot <-
+  data_vis %>% 
+  mutate(cat = if_else(`Has city in title` == 1, "Yes", "No"),
+         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  ggplot(aes(x=position)) +
+  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  scale_y_continuous(expand = c(0,0))  +
+  ylab("Count") +
+  xlab("Position") + 
+  labs(title = "Is city name in title?") +
+  facet_wrap(~cat)
+plot(title_city_plot)
+
+# title_keywords_plot <- grid.arrange(plot_car_personal_title0, plot_car_personal_title1,
+#              plot_lawyer_attorney_title0, plot_lawyer_attorney_title1,
+#              plot_city_title0, plot_city_title1,
+#              nrow=3, ncol=2, top="Title containing keywords")
+# 
+# description_keywords_plot <- grid.arrange(plot_car_personal_desc0, plot_car_personal_desc1,
+#              plot_lawyer_attorney_desc0,  plot_lawyer_attorney_desc1,
+#              plot_city_desc0, plot_city_desc1,
+#              nrow=3, ncol=2, top="Description containing keywords")
 
 if(save == T){ 
   ggsave(here::here("plots", "title_description_counts.pdf"), title_description_counts_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
-  ggsave(here::here("plots", "description_missing.pdf"), description_missing_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
-  ggsave(here::here("plots", "title_keywords.pdf"), title_keywords_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
-  ggsave(here::here("plots", "description_keywords.pdf"), description_keywords_plot, 
-         width = 12.5, height = 8, device = cairo_pdf)
+         width = 10, height = 6, device = cairo_pdf) 
+  #ggsave(here::here("plots", "description_missing.pdf"), description_missing_plot, 
+  #       width = 12.5, height = 8, device = cairo_pdf) 
+  ggsave(here::here("plots", "description_missing.pdf"), description_missing_plot_facet, 
+         width = 10, height = 5.5, device = cairo_pdf) 
+  # ggsave(here::here("plots", "title_keywords.pdf"), title_keywords_plot, 
+  #        width = 12.5, height = 8, device = cairo_pdf) 
+  # ggsave(here::here("plots", "description_keywords.pdf"), description_keywords_plot, 
+  #        width = 12.5, height = 8, device = cairo_pdf)
+  ggsave(here::here("plots", "description_car_personal.pdf"), description_car_personal_plot,
+         width = 10, height = 5.5, device = cairo_pdf)
+  ggsave(here::here("plots", "title_car_personal.pdf"), title_car_personal_plot,
+         width = 10, height = 5.5, device = cairo_pdf)
+  ggsave(here::here("plots", "description_lawyer_attorney.pdf"), description_lawyer_attorney_plot,
+         width = 10, height = 5.5, device = cairo_pdf)
+  ggsave(here::here("plots", "title_lawyer_attorney.pdf"), title_lawyer_attorney_plot,
+         width = 10, height = 5.5, device = cairo_pdf)
+  ggsave(here::here("plots", "description_city.pdf"), description_city_plot,
+         width = 10, height = 5.5, device = cairo_pdf)
+  ggsave(here::here("plots", "title_city.pdf"), title_city_plot,
+         width = 10, height = 5.5, device = cairo_pdf)
   
+  # interactive chart pushed to plotly chart studio
+  g <- plotly(plot_count_title + ggtitle("Non-empty title length boxplots"), .15)
+  api_create(g, filename = "plot_count_title")
+  g <- plotly(plot_count_description + ggtitle("Non-empty description length boxplots"), .15)
+  api_create(g, filename = "plot_count_description")
+  g <- plotly(description_missing_plot_facet, .1)
+  api_create(g, filename = "description_missing_plot_facet")
+  g <- plotly(description_car_personal_plot, .1)
+  api_create(g, filename = "description_car_personal_plot")
+  g <- plotly(title_car_personal_plot, .1)
+  api_create(g, filename = "title_car_personal_plot")
+  g <- plotly(description_lawyer_attorney_plot, .1)
+  api_create(g, filename = "description_lawyer_attorney_plot")
+  g <- plotly(title_lawyer_attorney_plot, .1)
+  api_create(g, filename = "title_lawyer_attorney_plot")
+  g <- plotly(description_city_plot, .1)
+  api_create(g, filename = "description_city_plot")
+  g <- plotly(title_city_plot, .1)
+  api_create(g, filename = "title_city_plot")
 }
 ```  
 
@@ -885,40 +1174,43 @@ if(save == T){
 ```{r reviews_plots, results='asis', echo=FALSE}
 
 rating_distribution_plot <- ggplot(all_reviews, aes(x=all_reviews_rating)) +
-  geom_histogram(color="white", fill="steelblue", bins=20) +
+  geom_bar(color="white", fill=cols[1]) +
   ylab("Count") +
   xlab("Rating") + 
   labs(title = "Ratings distribution") +
-  theme(plot.title = element_text(hjust = 0.5)) + 
-  coord_flip()
+  scale_y_continuous(labels = scales::comma_format(), expand = c(0, 0))
 plot(rating_distribution_plot)
 
 review_position_plot <- ggplot(data_vis, aes(y=`Relative # of reviews`, x=as.factor(position))) +
-  geom_boxplot(color="white", fill="steelblue") +
+  geom_boxplot(color=cols[1], fill="grey85") +
   ylab("Relative # of reviews") +
   xlab("Position") +
   labs(title = "Relative # of reviews boxplot") +
-  theme(plot.title = element_text(hjust = 0.5))
+  scale_y_continuous(labels = scales::percent_format())
 plot(review_position_plot)
 
 rating_position_plot <- ggplot(data_vis[!is.na(`Review rating`)], aes(y=`Review rating`, x=as.factor(position))) +
-  geom_boxplot(color="white", fill="steelblue") +
+  geom_boxplot(color=cols[1], fill="grey85") +
   ylab("Review rating") +
   xlab("Position") +
-  labs(title = "Review rating boxplot") +
-  theme(plot.title = element_text(hjust = 0.5))
+  labs(title = "Review rating boxplot") 
 plot(rating_position_plot)
 
 if(save == T){ 
   ggsave(here::here("plots", "rating_distribution.pdf"), rating_distribution_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
+         width = 9, height = 6, device = cairo_pdf) 
   ggsave(here::here("plots", "review_position.pdf"), review_position_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
+         width = 9, height = 6, device = cairo_pdf) 
   ggsave(here::here("plots", "rating_position.pdf"), rating_position_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
+         width = 9, height = 6, device = cairo_pdf) 
   
-  description_missing_plot <- grid.arrange(plot_missing_description, plot_not_missing_description, nrow=1, ncol=2, top="Empty description")
-
+  # interactive chart pushed to plotly chart studio
+  g <- plotly(rating_distribution_plot, .15)
+  api_create(g, filename = "rating_distribution_plot")
+  g <- plotly(review_position_plot, .15)
+  api_create(g, filename = "review_position_plot")
+  g <- plotly(rating_position_plot, .15)
+  api_create(g, filename = "rating_position_plot")
 }
 ```  
 
@@ -972,52 +1264,55 @@ if(save == T){
 ```{r ref_domains_dofollow_plots, results='asis', echo=FALSE}
 ref_domains_dofollow_plot <- ggplot(data_vis[!is.na(`Relative ref_domains_dofollow`)],
        aes(y=`Relative ref_domains_dofollow`, x=as.factor(position))) +
-  geom_boxplot(color="white", fill="steelblue") +
+  geom_boxplot(color=cols[1], fill="grey85") +
   ylab("Relative ref_domains_dofollow") +
   xlab("Position") +
-  labs(title = "Relative ref_domains_dofollow boxplot") +
-  theme(plot.title = element_text(hjust = 0.5))
+  labs(title = "Relative ref_domains_dofollow boxplot") 
 plot(ref_domains_dofollow_plot)
 
 total_traffic_plot <- ggplot(data_vis[!is.na(`Relative total_traffic`)],
        aes(y=`Relative total_traffic`, x=as.factor(position))) +
-  geom_boxplot(color="white", fill="steelblue") +
+  geom_boxplot(color=cols[1], fill="grey85") +
   ylab("Relative total_traffic") +
   xlab("Position") +
-  labs(title = "Relative total_traffic boxplot") +
-  theme(plot.title = element_text(hjust = 0.5))
+  labs(title = "Relative total_traffic boxplot") 
 plot(total_traffic_plot)
 
 ahrefs_rank_plot <- ggplot(data_vis[!is.na(`Relative ahrefs_rank`)],
        aes(y=`Relative ahrefs_rank`, x=as.factor(position))) +
-  geom_boxplot(color="white", fill="steelblue") +
+  geom_boxplot(color=cols[1], fill="grey85") +
   ylab("Relative ahrefs_rank") +
   xlab("Position") +
-  labs(title = "Relative ahrefs_rank boxplot") +
-  theme(plot.title = element_text(hjust = 0.5))
+  labs(title = "Relative ahrefs_rank boxplot")
 plot(ahrefs_rank_plot)
 
 domain_rating_plot <- ggplot(data_vis[!is.na(`Relative domain_rating`)],
        aes(y=`Relative domain_rating`, x=as.factor(position))) +
-  geom_boxplot(color="white", fill="steelblue") +
+  geom_boxplot(color=cols[1], fill="grey85") +
   ylab("Relative domain_rating") +
   xlab("Position") +
-  labs(title = "Relative domain_rating boxplot") +
-  theme(plot.title = element_text(hjust = 0.5))
+  labs(title = "Relative domain_rating boxplot")
 plot(domain_rating_plot)
 
 if(save == T){ 
   ggsave(here::here("plots", "ref_domains_dofollow.pdf"), ref_domains_dofollow_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
-  
+         width = 9, height = 6, device = cairo_pdf) 
   ggsave(here::here("plots", "total_traffic.pdf"), total_traffic_plot, 
-         width = 12.5, height = 8, device = cairo_pdf)
-    
+         width = 9, height = 6, device = cairo_pdf)
   ggsave(here::here("plots", "ahrefs_rank.pdf"), ahrefs_rank_plot, 
-         width = 12.5, height = 8, device = cairo_pdf)
-  
+         width = 9, height = 6, device = cairo_pdf)
   ggsave(here::here("plots", "domain_rating.pdf"), domain_rating_plot, 
-         width = 12.5, height = 8, device = cairo_pdf)
+         width = 9, height = 6, device = cairo_pdf)
+  
+  # interactive chart pushed to plotly chart studio
+  g <- plotly(ref_domains_dofollow_plot, .15)
+  api_create(g, filenmae = "ref_domains_dofollow_plot")
+  g <- plotly(total_traffic_plot, .15)
+  api_create(g, filename = "total_traffic_plot")
+  g <- plotly(ahrefs_rank_plot, .15)
+  api_create(g, filename = "ahrefs_rank_plot")
+  g <- plotly(domain_rating_plot, .15)
+  api_create(g, filename = "domain_rating_plot")
 }
 ```  
 
@@ -1054,34 +1349,54 @@ if(save == T){
 ```{r other_features_plot, results='asis', echo=FALSE}
 
 number_of_photos_plot <- ggplot(data_vis, aes(y=`Relative # of photos`, x=as.factor(position))) +
-  geom_boxplot(color="white", fill="steelblue") +
+  geom_boxplot(color=cols[1], fill="grey85") +
   ylab("Relative # of photos") +
   xlab("Position") +
-  labs(title = "Relative # of photos boxplot") +
-  theme(plot.title = element_text(hjust = 0.5))
+  labs(title = "Relative # of photos boxplot")
 plot(number_of_photos_plot)
 
-updates0 <- ggplot(data_vis[`Provides updates` == 0], aes(x=position)) +
-    geom_histogram(color="white", fill="steelblue", bins=20) +
-    ylab("Count") +
-    xlab("Position") + 
-    labs(title = "No") +
-    theme(plot.title = element_text(hjust = 0.5))
+# updates0 <- ggplot(data_vis[`Provides updates` == 0], aes(x=position)) +
+#     geom_histogram(color="white", fill=cols[1], bins=20) +
+#     ylab("Count") +
+#     xlab("Position") + 
+#     labs(title = "No") +
+#     theme(plot.title = element_text(hjust = 0.5))
+# 
+# updates1 <- ggplot(data_vis[`Provides updates` == 1], aes(x=position)) +
+#     geom_histogram(color="white", fill=cols[1], bins=20) +
+#     ylab("Count") +
+#     xlab("Position") + 
+#     labs(title = "Yes") +
+#     theme(plot.title = element_text(hjust = 0.5))
+# 
+# provides_updates_plot <- grid.arrange(updates1, updates0, nrow=1, ncol=2, top="Provides updates on Google")
 
-updates1 <- ggplot(data_vis[`Provides updates` == 1], aes(x=position)) +
-    geom_histogram(color="white", fill="steelblue", bins=20) +
-    ylab("Count") +
-    xlab("Position") + 
-    labs(title = "Yes") +
-    theme(plot.title = element_text(hjust = 0.5))
+provides_updates_plot_facet <- 
+  data_vis %>% 
+  mutate(cat = if_else(`Provides updates` == 1, "Yes", "No"),
+         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  ggplot(aes(x=position)) +
+  geom_histogram(color="white", fill=cols[1], bins=20) + 
+  scale_y_continuous(expand = c(0,0))  +
+  ylab("Count") +
+  xlab("Position") + 
+  scale_y_continuous(expand = c(0,0)) +
+  labs(title = "Provides updates on Google") + 
+  facet_wrap(~cat)
+plot(provides_updates_plot_facet)
 
-provides_updates_plot <- grid.arrange(updates1, updates0, nrow=1, ncol=2, top="Provides updates on Google")
 
 if(save == T){ 
   ggsave(here::here("plots", "number_of_photos.pdf"), number_of_photos_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
-  ggsave(here::here("plots", "provides_updates.pdf"), provides_updates_plot, 
-         width = 12.5, height = 8, device = cairo_pdf) 
+         width = 9, height = 6, device = cairo_pdf) 
+  ggsave(here::here("plots", "provides_updates.pdf"), provides_updates_plot_facet, 
+         width = 9, height = 6, device = cairo_pdf) 
+  
+  # interactive chart pushed to plotly chart studio
+  g <- plotly(number_of_photos_plot, .15)
+  api_create(g, filename = "number_of_photos_plot")
+  g <- plotly(provides_updates_plot_facet, .1)
+  api_create(g, filename = "provides_updates_plot_facet")
 }
 ``` 
 
@@ -1126,13 +1441,13 @@ if(save == T){
 
 
 ```{r convert_to_pngs, results='asis', echo=FALSE}
-  if(save == T) {
-    pdfs <- list.files(here::here("plots"), pattern = "*.pdf")
-    
-    setwd(here::here("plots", "png"))
-    for(pdf in pdfs) {
-      pdf_convert(pdf = here::here("plots", pdf), format = "png", dpi = 720)
-    }
+if(save == T) {
+  pdfs <- list.files(here::here("plots"), pattern = "*.pdf")
+  
+  setwd(here::here("plots", "png"))
+  for(pdf in pdfs) {
+    pdf_convert(pdf = here::here("plots", pdf), format = "png", dpi = 720)
   }
+}
 
 ```  

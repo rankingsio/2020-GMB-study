@@ -1,7 +1,7 @@
 Type,Title,Description
-Median character length (non missing),24,534
+Median character length (non missing),24,535
 Min character length (non missing),4,8
-Max character length (non missing),125,752
+Max character length (non missing),135,1831
 Missing,0.01%,40.66%
 Containing lawyer or attorney,22.65%,43.62%
 Containing car accident or personal injury,5.32%,44.76%
