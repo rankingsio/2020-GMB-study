@@ -33,7 +33,7 @@ if(any(!was_succesfully_loaded)) {
 
 ```{r plot-prep}
 cols <- c("#d21c5c", "#060618")
-caption <- "Graphic: FrontPage Data"
+caption <- "Source: Rankings.io"
 
 ## theme updates
 theme_set(ggthemes::theme_clean(base_size = 18, base_family = "Alegreya Sans"))
@@ -54,6 +54,8 @@ theme_update(plot.background = element_rect(color = "white",
                                           color = "grey45", 
                                           margin = margin(b = 7)),
              plot.title.position = "plot",
+             plot.caption = element_text(color = "grey40", size = 9, margin = margin(t = 12)),
+             plot.caption.position = "plot",
              panel.grid.major.y = element_line(color = "grey80", linetype = "dotted", size = .4),
              axis.text = element_text(color = "grey45"),
              axis.ticks.length = unit(.15, "lines"),
@@ -73,8 +75,8 @@ theme_update(plot.background = element_rect(color = "white",
 
 ## plotly function
 
-plotly <- function(p, pos) {
-  ggplotly(p) %>%
+plotly <- function(p, pos, w, h) {
+  ggplotly(p, width = w, height = h) %>%
   config(displayModeBar = FALSE) %>%    
   layout(
     margin = list(l = 50, r = 50, t = 100, b = pos*700),
@@ -491,7 +493,7 @@ spearman_plot <- ggplot(spearman_data, aes(x = correlation)) +
   ylab("Count") + 
   scale_x_binned() +
   scale_y_continuous(expand = c(0,0), breaks = 0:5 * 20) +
-  labs(title = paste0("Mean Spearman's correlations between predicted and observed rankings: ", mean_correlation))
+  labs(title = paste0("Mean Spearman's correlations between predicted and observed rankings: ", mean_correlation), caption = caption)
 plot(spearman_plot)
 
 if(save == T){ 
@@ -499,7 +501,7 @@ if(save == T){
          width = 10, height = 7, device = cairo_pdf) 
 
   # interactive chart pushed to plotly chart studio
-  g <- plotly(spearman_plot, .2)
+  g <- plotly(spearman_plot, .2, w = 1000, h = 700)
   api_create(g, filename = "spearman_plot")
 }
 ```
@@ -523,7 +525,7 @@ feature_importance_plot <- ggplot(shap_importance, aes(x=reorder(feature, import
   scale_fill_gradient2(low = cols[2], mid = cols[2], high = cols[1], midpoint = 0) + 
   xlab("Feature") +
   ylab("Importance") + 
-  labs(title = "SHAP feature importance") + 
+  labs(title = "When a city is used in a search query,\nthe city in a GMB profile is the dominant ranking factor") + 
   theme(legend.position="none", 
         #axis.text.x=element_blank(), 
         #axis.ticks.x=element_blank(),
@@ -534,7 +536,8 @@ feature_importance_plot <- ggplot(shap_importance, aes(x=reorder(feature, import
         panel.grid.major.y = element_blank()) +  
   scale_y_continuous(limits=c(0.0,NA), expand=c(0,0))+
   coord_flip() +
-  labs(x = NULL)
+  labs(x = NULL, caption = caption) +
+  theme(plot.title = element_text(margin = margin(b = 15)))
 plot(feature_importance_plot)
 
 
@@ -543,12 +546,12 @@ plot(shap_values_plot)
 
 if(save == T){ 
   ggsave(here::here("plots", "feature_importance.pdf"), feature_importance_plot, 
-         width = 7.5, height = 9, device = cairo_pdf) 
+         width = 7.5, height = 10, device = cairo_pdf) 
   ggsave(here::here("plots", "shap_values.pdf"), shap_values_plot, 
          width = 12, height = 10.5, device = cairo_pdf) 
   
   # interactive chart pushed to plotly chart studio
-  g <- plotly(feature_importance_plot, .1)
+  g <- plotly(feature_importance_plot, .15, w = 1000, h = 900)
   api_create(g, filename = "feature_importance_plot")
 }
 
@@ -647,7 +650,7 @@ type_freq_plot <-
   geom_bar(stat="identity", fill=cols[1]) +
   geom_text(aes(label = glue::glue("{format(Freq, big.mark = ",")} ({perc}%)")), 
             family = "Lora", fontface = "bold", color = "grey45", 
-            lineheight = .9, nudge_y = 500, hjust = 0) +
+            lineheight = .9, nudge_y = 750, hjust = 0) +
   ylab("Count") +
   xlab("Category") + 
   labs(title = "Ten most common type categories in search results") +
@@ -656,9 +659,10 @@ type_freq_plot <-
         axis.text.y = element_text(color = "black"), 
         panel.grid.major.y = element_blank()) +
   coord_flip() +
-  labs(x = NULL)
+  labs(x = NULL, caption = caption)
 print(type_freq_plot)
 
+title <- "Personal injury attorney outranks other common business types"
 
 ps <- list()
 for(i in 1:6) {
@@ -673,7 +677,7 @@ for(i in 1:6) {
 type_position_plot <- 
   ps[[1]] + ps[[2]] + ps[[3]] + ps[[4]] + ps[[5]] + ps[[6]] +
   plot_layout(nrow = 2) +
-  plot_annotation(title = "Distribution of search positions for the six most common type categories")
+  plot_annotation(title = title, caption = caption)
 #type_position_plot <- grid.arrange(ps[[1]], ps[[2]], ps[[3]],
 #             ps[[4]], ps[[5]], ps[[6]], nrow=2, ncol=3, top = "Distribution of search positions for 6 most common type categories")
 plot(type_position_plot)
@@ -685,11 +689,11 @@ plot_facet <- function(p) {
   ggplotly(p) %>% 
     add_annotations(
     text = p$labels$title,
-    x = 0.5,
+    x = 0,
     y = 1,
     yref = "paper",
     xref = "paper",
-    xanchor = "middle",
+    xanchor = "left",
     yanchor = "top",
     showarrow = FALSE,
     font = list(size = 15)
@@ -704,7 +708,7 @@ type_position_plotly <-
     plot_facet(ps[[4]]),
     plot_facet(ps[[5]]),
     plot_facet(ps[[6]])
-  )
+  ) %>% layout(title = title)
 
 ## same y axis scaling for all
 ps <- list()
@@ -712,16 +716,16 @@ for(i in 1:6) {
   ps[[i]] <- ggplot(data_vis[type_category == type_counts$category[i]], aes(x=position)) +
   geom_bar(fill=cols[1], width = .9) +
   scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
-  scale_y_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1600), breaks = seq(0, 1500, by = 250)) +
   labs(title = type_counts$category[i], x = "Position", y = NULL) + 
-  theme(plot.title = element_text(face = "plain", size = 14), 
+  theme(plot.title = element_text(face = "plain", size = 14, margin = margin(b = 15)), 
         axis.title = element_text(size = 11, face = "plain"))
 }
 
 type_position_plot_scaled <- 
   ps[[1]] + ps[[2]] + ps[[3]] + ps[[4]] + ps[[5]] + ps[[6]] +
   plot_layout(nrow = 2) +
-  plot_annotation(title = "Distribution of search positions for the six most common type categories")
+  plot_annotation(title = title, caption = caption)
 #type_position_plot <- grid.arrange(ps[[1]], ps[[2]], ps[[3]],
 #             ps[[4]], ps[[5]], ps[[6]], nrow=2, ncol=3, top = "Distribution of search positions for 6 most common type categories")
 plot(type_position_plot_scaled)
@@ -735,7 +739,7 @@ type_position_plotly_scaled <-
     plot_facet(ps[[4]]),
     plot_facet(ps[[5]]),
     plot_facet(ps[[6]])
-  )
+  ) %>% layout(title = title)
 
 
 if(save == T){ 
@@ -743,16 +747,16 @@ if(save == T){
          width = 12.5, height = 8, device = cairo_pdf) 
   ggsave(here::here("plots", "type_position.pdf"), type_position_plot, 
          width = 12.5, height = 8, device = cairo_pdf) 
-  ggsave(here::here("plots", "type_position_scaled.pdf"), type_position_plot, 
+  ggsave(here::here("plots", "type_position_scaled.pdf"), type_position_plot_scaled, 
          width = 12.5, height = 8, device = cairo_pdf) 
   
   ## !! Plotly doesnt work with multipanel plots!
   # interactive chart pushed to plotly chart studio
-  g <- plotly(type_freq_plot, .15)
+  g <- plotly(type_freq_plot, .15, w = 1500, h = 900)
   api_create(g, filename = "type_freq_plot")
-  g <- plotly(type_position_plotly, .2)
+  g <- plotly(type_position_plotly, .1, w = 1250, h = 800)
   api_create(g, filename = "type_position_plot")
-  g <- plotly(type_position_plotly_scaled, .2)
+  g <- plotly(type_position_plotly_scaled, .1, w = 1250, h = 800)
   api_create(g, filename = "type_position_plot_scaled")
 }
 ```    
@@ -858,11 +862,12 @@ desc_wordcloud <-
       shape = "circle",
       grid_margin = 2.5
     ) +
-    scale_color_gradient(low = "grey85", high = cols[1]) +
+    scale_color_gradient(low = "grey75", high = cols[1]) +
     scale_size_area(max_size = 10) +
-    labs(title = "\n100 most common words in the description") +
+    labs(title = "\n100 most common words in the description", caption = caption) +
     theme_minimal() +
-    theme(plot.title = element_text(hjust = .5, family = "Lora", face = "bold"))
+    theme(plot.title = element_text(hjust = .5, family = "Lora", face = "bold"),
+          plot.caption = element_text(hjust = 1, family = "Alegreya", size = 7, color = "grey40"))
 plot(desc_wordcloud)
 
 title_wordcloud <- 
@@ -879,11 +884,12 @@ title_wordcloud <-
       shape = "circle",
       grid_margin = 2.5
     ) +
-    scale_color_gradient(low = "grey85", high = cols[1]) +
+    scale_color_gradient(low = "grey75", high = cols[1]) +
     scale_size_area(max_size = 18) +
-    labs(title = "\n100 most common words in the title") +
+    labs(title = "\n100 most common words in the title", caption = caption) +
     theme_minimal() +
-    theme(plot.title = element_text(hjust = .5, family = "Lora", face = "bold"))
+    theme(plot.title = element_text(hjust = .5, family = "Lora", face = "bold"),
+          plot.caption = element_text(hjust = 1, family = "Alegreya", size = 7, color = "grey40"))
 plot(title_wordcloud)
 
 
@@ -970,15 +976,15 @@ plot(title_description_counts_plot)
 
 description_missing_plot_facet <- 
   data_vis %>% 
-  mutate(cat = if_else(description == "", "Yes", "No"),
-         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  mutate(cat = if_else(description == "", "Empty", "Non-empty"),
+         cat = factor(cat, levels = c("Empty", "Non-empty"))) %>% 
   ggplot(aes(x=position)) +
   geom_bar(fill=cols[1], width = .8) +
   scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
   ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Empty description?") + 
+  xlab(NULL) + 
+  labs(title = "Non-empty description in GMB profile help to increase position", caption = caption) + 
   facet_wrap(~cat)
 plot(description_missing_plot_facet)
 
@@ -995,17 +1001,18 @@ plot(description_missing_plot_facet)
 #   labs(title = "Has \"car accident\" or \"personal injury\"") +
 #   theme(plot.title = element_text(hjust = 0.5))
 
+title_t <- "Including relevant keywords in GMB profile title helps to increase position"
+title_d <- "Including relevant keywords in GMB profile description helps to increase position"
+
 description_car_personal_plot <-
   data_vis %>% 
-  mutate(cat = if_else(`Has car accident or personal injury in description` == 1, "Yes", "No"),
-         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  mutate(cat = if_else(`Has car accident or personal injury in description` == 1, "\"Car accident\" or \"personal injury\" in description", "\"Car accident\" or \"personal injury\" not in description"),
+         cat = factor(cat, levels = c("\"Car accident\" or \"personal injury\" in description", "\"Car accident\" or \"personal injury\" not in description"))) %>% 
   ggplot(aes(x=position)) +
   geom_bar(fill=cols[1], width = .8) +
   scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Has \"car accident\" or \"personal injury\" in description?") +
+  labs(x = NULL, y = "Count", title = title_d, caption = caption) +
   facet_wrap(~cat)
 plot(description_car_personal_plot)
 
@@ -1025,15 +1032,15 @@ plot(description_car_personal_plot)
 
 title_car_personal_plot <-
   data_vis %>% 
-  mutate(cat = if_else(`Has car accident or personal injury in title` == 1, "Yes", "No"),
-         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  mutate(cat = if_else(`Has car accident or personal injury in title` == 1, "\"Car accident\" or \"personal injury\" in title", "\"Car accident\" or \"personal injury\" not in title"),
+         cat = factor(cat, levels = c("\"Car accident\" or \"personal injury\" in title", "\"Car accident\" or \"personal injury\" not in title"))) %>% 
   ggplot(aes(x=position)) +
   geom_bar(fill=cols[1], width = .8) +
   scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
   ylab("Count") +
   xlab("Position") + 
-  labs(title = "Has \"car accident\" or \"personal injury\" in title?") +
+  labs(x = NULL, y = "Count", title = title_t, cpation = caption) +
   facet_wrap(~cat)
 plot(title_car_personal_plot)
 
@@ -1053,15 +1060,13 @@ plot(title_car_personal_plot)
 
 description_lawyer_attorney_plot <-
   data_vis %>% 
-  mutate(cat = if_else(`Has lawyer or attorney in description` == 1, "Yes", "No"),
-         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  mutate(cat = if_else(`Has lawyer or attorney in description` == 1, "\"Lawyer\" or \"attorney\" in description", "\"Lawyer\" or \"attorney\" not in description"),
+         cat = factor(cat, levels = c("\"Lawyer\" or \"attorney\" in description", "\"Lawyer\" or \"attorney\" not in description"))) %>% 
   ggplot(aes(x=position)) +
   geom_bar(fill=cols[1], width = .8) +
   scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Has \"lawyer\" or \"attorney\" in description?") +
+  labs(x = NULL,  y = "Count", title = title_d, caption = caption) +
   facet_wrap(~cat)
 plot(description_lawyer_attorney_plot)
 
@@ -1080,15 +1085,13 @@ plot(description_lawyer_attorney_plot)
 
 title_lawyer_attorney_plot <-
   data_vis %>% 
-  mutate(cat = if_else(`Has lawyer or attorney in title` == 1, "Yes", "No"),
-         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  mutate(cat = if_else(`Has lawyer or attorney in title` == 1, "\"Lawyer\" or \"attorney\" in title", "\"Lawyer\" or \"attorney\" not in title"),
+         cat = factor(cat, levels = c("\"Lawyer\" or \"attorney\" in title", "\"Lawyer\" or \"attorney\" not in title"))) %>% 
   ggplot(aes(x=position)) +
   geom_bar(fill=cols[1], width = .8) +
   scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Has \"lawyer\" or \"attorney\" in title?") +
+  labs(x = NULL, y = "Count", title = title_t, caption = caption) +
   facet_wrap(~cat)
 plot(title_lawyer_attorney_plot)
 
@@ -1108,15 +1111,13 @@ plot(title_lawyer_attorney_plot)
 
 description_city_plot <-
   data_vis %>% 
-  mutate(cat = if_else(`Has same city listed as in search query` == 1, "Yes", "No"),
-         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  mutate(cat = if_else(`Has same city listed as in search query` == 1, "City name in description", "City name not in description"),
+         cat = factor(cat, levels = c("City name in description", "City name not in description"))) %>% 
   ggplot(aes(x=position)) +
   geom_bar(fill=cols[1], width = .8) +
   scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
-  scale_y_continuous(expand = c(0,0))  +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Is city name in description?") +
+  scale_y_continuous(expand = c(0,0)) +
+  labs(x = NULL, y = "Count", title = "Including the city name in GMB profile description helps to increase position", caption = caption) +
   theme() +
   facet_wrap(~cat)
 plot(description_city_plot)
@@ -1136,15 +1137,13 @@ plot(description_city_plot)
 
 title_city_plot <-
   data_vis %>% 
-  mutate(cat = if_else(`Has city in title` == 1, "Yes", "No"),
-         cat = factor(cat, levels = c("Yes", "No"))) %>% 
+  mutate(cat = if_else(`Has city in title` == 1, "City name in title", "City name not in title"),
+         cat = factor(cat, levels = c("City name in title", "City name not in title"))) %>% 
   ggplot(aes(x=position)) +
   geom_bar(fill=cols[1], width = .8) +
   scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
-  ylab("Count") +
-  xlab("Position") + 
-  labs(title = "Is city name in title?") +
+  labs(x = NULL, y = "Count", title = "Including the city name in GMB profile title helps to increase position", caption = caption) +
   facet_wrap(~cat)
 plot(title_city_plot)
 
@@ -1183,23 +1182,23 @@ if(save == T){
          width = 10, height = 5.5, device = cairo_pdf)
   
   # interactive chart pushed to plotly chart studio
-  g <- plotly(plot_count_title + ggtitle("Non-empty title length boxplots"), .15)
-  api_create(g, filename = "plot_count_title")
-  g <- plotly(plot_count_description + ggtitle("Non-empty description length boxplots"), .15)
+  g <- plotly(plot_count_title + ggtitle("Non-empty title length boxplots"), .15, w = 900, h = 700)
+  api_create(g, filename = "plot_count_title", w = 1000, h = 800)
+  g <- plotly(plot_count_description + ggtitle("Non-empty description length boxplots"), .15, w = 900, h = 700)
   api_create(g, filename = "plot_count_description")
-  g <- plotly(description_missing_plot_facet, .1)
+  g <- plotly(description_missing_plot_facet, .15, w = 1000, h = 800)
   api_create(g, filename = "description_missing_plot_facet")
-  g <- plotly(description_car_personal_plot, .1)
+  g <- plotly(description_car_personal_plot, .12, w = 1000, h = 650)
   api_create(g, filename = "description_car_personal_plot")
-  g <- plotly(title_car_personal_plot, .1)
+  g <- plotly(title_car_personal_plot, .12, w = 1000, h = 650)
   api_create(g, filename = "title_car_personal_plot")
-  g <- plotly(description_lawyer_attorney_plot, .1)
+  g <- plotly(description_lawyer_attorney_plot, .12, w = 1000, h = 650)
   api_create(g, filename = "description_lawyer_attorney_plot")
-  g <- plotly(title_lawyer_attorney_plot, .1)
+  g <- plotly(title_lawyer_attorney_plot, .12, w = 1000, h = 650)
   api_create(g, filename = "title_lawyer_attorney_plot")
-  g <- plotly(description_city_plot, .1)
+  g <- plotly(description_city_plot, .12, w = 1000, h = 650)
   api_create(g, filename = "description_city_plot")
-  g <- plotly(title_city_plot, .1)
+  g <- plotly(title_city_plot, .12, w = 1000, h = 650)
   api_create(g, filename = "title_city_plot")
 }
 ```  
@@ -1260,25 +1259,18 @@ rating_distribution_plot <-
   geom_text(aes(label = glue::glue("{format(n, big.mark = ',')} ({perc}%)")), 
             family = "Lora", fontface = "bold", color = "grey45", size = 3.5,
             hjust = .5, lineheight = .9, nudge_y = 45000) +
-  
-  ylab("Count") +
-  xlab("Rating") + 
-  labs(title = "Ratings distribution") +
-  scale_y_continuous(labels = scales::comma_format(), expand = c(0, 0), limits = c(0, 1200000))
+  scale_y_continuous(labels = scales::comma_format(), expand = c(0, 0), limits = c(0, 1200000), breaks = seq(0, 1000000, by = 250000)) +
+  labs(x = "Ratings", y = "Count", title = "Distribution of ratings", caption = caption)
 plot(rating_distribution_plot)
 
 review_position_plot <- ggplot(data_vis, aes(y=`Relative # of reviews`, x=as.factor(position))) +
   geom_boxplot(color=cols[1], fill="grey85") +
-  ylab("Relative # of reviews") +
-  xlab("Position") +
-  labs(title = "Relative # of reviews boxplot")
+  labs(x = "Position", y = "Relative # of reviews", title = "Higher review volumes correlates with higher GMB rank ", caption = caption)
 plot(review_position_plot)
 
 rating_position_plot <- ggplot(data_vis[!is.na(`Review rating`)], aes(y=`Review rating`, x=as.factor(position))) +
   geom_boxplot(color=cols[1], fill="grey85") +
-  ylab("Review rating") +
-  xlab("Position") +
-  labs(title = "Review rating boxplot") 
+  labs(x = "Position", y = "Review rating", title = "Review rating per position", caption = caption) 
 plot(rating_position_plot)
 
 if(save == T){ 
@@ -1290,11 +1282,11 @@ if(save == T){
          width = 9, height = 6, device = cairo_pdf) 
   
   # interactive chart pushed to plotly chart studio
-  g <- plotly(rating_distribution_plot, .15)
+  g <- plotly(rating_distribution_plot, .2, w = 1000, h = 750)
   api_create(g, filename = "rating_distribution_plot")
-  g <- plotly(review_position_plot, .15)
+  g <- plotly(review_position_plot, .2, w = 1000, h = 750)
   api_create(g, filename = "review_position_plot")
-  g <- plotly(rating_position_plot, .15)
+  g <- plotly(rating_position_plot, .2, w = 1000, h = 750)
   api_create(g, filename = "rating_position_plot")
 }
 ```  
@@ -1350,9 +1342,9 @@ if(save == T){
 ref_domains_dofollow_plot <- ggplot(data_vis[!is.na(`Relative ref_domains_dofollow`)],
        aes(y=`Relative ref_domains_dofollow`, x=as.factor(position))) +
   geom_boxplot(color=cols[1], fill="grey85") +
-  ylab("Relative ref_domains_dofollow") +
+  ylab("Relative number of do-follow domains") +
   xlab("Position") +
-  labs(title = "Relative ref_domains_dofollow boxplot") 
+  labs(title = "Referring do-follow domains appear to slightly impact GMB rank", caption = caption) 
 plot(ref_domains_dofollow_plot)
 
 total_traffic_plot <- ggplot(data_vis[!is.na(`Relative total_traffic`)],
@@ -1360,15 +1352,15 @@ total_traffic_plot <- ggplot(data_vis[!is.na(`Relative total_traffic`)],
   geom_boxplot(color=cols[1], fill="grey85") +
   ylab("Relative total_traffic") +
   xlab("Position") +
-  labs(title = "Relative total_traffic boxplot") 
+  labs(title = "Relative total_traffic boxplot", caption = caption) 
 plot(total_traffic_plot)
 
 ahrefs_rank_plot <- ggplot(data_vis[!is.na(`Relative ahrefs_rank`)],
        aes(y=`Relative ahrefs_rank`, x=as.factor(position))) +
   geom_boxplot(color=cols[1], fill="grey85") +
-  ylab("Relative ahrefs_rank") +
+  ylab("Ahrefs ranking") +
   xlab("Position") +
-  labs(title = "Relative ahrefs_rank boxplot")
+  labs(title = "High Ahrefs rank correlates with higher GMB position", caption = caption)
 plot(ahrefs_rank_plot)
 
 domain_rating_plot <- ggplot(data_vis[!is.na(`Relative domain_rating`)],
@@ -1376,7 +1368,7 @@ domain_rating_plot <- ggplot(data_vis[!is.na(`Relative domain_rating`)],
   geom_boxplot(color=cols[1], fill="grey85") +
   ylab("Relative domain_rating") +
   xlab("Position") +
-  labs(title = "Relative domain_rating boxplot")
+  labs(title = "Relative domain_rating boxplot", caption = caption)
 plot(domain_rating_plot)
 
 if(save == T){ 
@@ -1390,13 +1382,13 @@ if(save == T){
          width = 9, height = 6, device = cairo_pdf)
   
   # interactive chart pushed to plotly chart studio
-  g <- plotly(ref_domains_dofollow_plot, .15)
+  g <- plotly(ref_domains_dofollow_plot, .2, w = 1000, h = 750)
   api_create(g, filenmae = "ref_domains_dofollow_plot")
-  g <- plotly(total_traffic_plot, .15)
+  g <- plotly(total_traffic_plot, .2, w = 1000, h = 750)
   api_create(g, filename = "total_traffic_plot")
-  g <- plotly(ahrefs_rank_plot, .15)
+  g <- plotly(ahrefs_rank_plot, .2, w = 1000, h = 750)
   api_create(g, filename = "ahrefs_rank_plot")
-  g <- plotly(domain_rating_plot, .15)
+  g <- plotly(domain_rating_plot, .2, w = 1000, h = 750)
   api_create(g, filename = "domain_rating_plot")
 }
 ```  
@@ -1435,9 +1427,7 @@ if(save == T){
 
 number_of_photos_plot <- ggplot(data_vis, aes(y=`Relative # of photos`, x=as.factor(position))) +
   geom_boxplot(color=cols[1], fill="grey85") +
-  ylab("Relative # of photos") +
-  xlab("Position") +
-  labs(title = "Relative # of photos boxplot")
+  labs(x = "Position", y = "Relative number of photos", title = "Higher review volumes correlates with higher GMB rank", caption = caption)
 plot(number_of_photos_plot)
 
 # updates0 <- ggplot(data_vis[`Provides updates` == 0], aes(x=position)) +
@@ -1464,10 +1454,7 @@ provides_updates_plot_facet <-
   geom_bar(fill=cols[1], width = .8) +
   scale_x_continuous(breaks = c(1, 5, 10, 15, 20), expand = c(.02, .02)) +
   scale_y_continuous(expand = c(0,0))  +
-  ylab("Count") +
-  xlab("Position") + 
-  scale_y_continuous(expand = c(0,0)) +
-  labs(title = "Provides updates on Google") + 
+  labs(x= "\nPosition", y = "Count", title = "Provides updates on Google", caption = caption) + 
   facet_wrap(~cat)
 plot(provides_updates_plot_facet)
 
@@ -1479,9 +1466,9 @@ if(save == T){
          width = 9, height = 6, device = cairo_pdf) 
   
   # interactive chart pushed to plotly chart studio
-  g <- plotly(number_of_photos_plot, .15)
+  g <- plotly(number_of_photos_plot, .2, w = 1000, h = 750)
   api_create(g, filename = "number_of_photos_plot")
-  g <- plotly(provides_updates_plot_facet, .1)
+  g <- plotly(provides_updates_plot_facet, .2, w = 1000, h = 750)
   api_create(g, filename = "provides_updates_plot_facet")
 }
 ``` 
@@ -1535,5 +1522,4 @@ if(save == T) {
     pdf_convert(pdf = here::here("plots", pdf), format = "png", dpi = 720)
   }
 }
-
-```  
+```
