@@ -1,8 +1,8 @@
 ---
 title: "Google My Business Ranking Study"
 author: 
-- "Lead: Chris Dreyer (rankings.io)"
-- "Support: Frontpagedata.com"
+- "Lead: Chris Dreyer ([rankings.io](https://rankings.io/))"
+- "Support: FrontPage Data ([frontpagedata.com](https://frontpagedata.com/))"
 date: "Last updated on `r Sys.Date()`"
 output: 
   html_document:
@@ -55,8 +55,10 @@ Smaller data studies as well as opinion-based surveys have sought to uncover the
 However, in our view, most of the studies are outdated and contain severe statistical and methodological flaws.
 
 This study intends to fill the gap and shed some insights in the personal injury niche on which local ranking factors are the most relevant ones. 
-  
-  
+
+It builds and extents on our previous [data-based study to evaluate 112,000 personal injury law SERPs (search engine results page)](https://rankings.io/personal-injury-seo-data-science/). You can see a full breakdown of the previous data analysis right [here](https://rankings.io/data-report/). 
+
+
 # 2 Methodology
 
 ##### Step 1 Keyword Selection
