@@ -10,4 +10,4 @@ This is the Github repository for Rankings.io´s Google My Business Ranking Stud
 &ensp;
 ### Contributors ✨
 - Lead: Chris Dreyer ([rankings.io](https://rankings.io/))
-- Support: FrontPage Data [frontpagedata.com](https://frontpagedata.com/)
+- Support: FrontPage Data ([frontpagedata.com](https://frontpagedata.com/))
